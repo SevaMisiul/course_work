@@ -41,7 +41,6 @@ object BackMenuForm: TBackMenuForm
     TabOrder = 0
     OnMouseWheelDown = OnMouseWheelDown
     OnMouseWheelUp = OnMouseWheelUp
-    ExplicitWidth = 848
   end
   object BkPictureDialog: TOpenPictureDialog
     Left = 696

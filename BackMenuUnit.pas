@@ -10,6 +10,7 @@ uses
 
 type
   TBkImage = class(TImage)
+    procedure BkClick(Sender: TObject);
   private const
     SpaceBtwHor = 60;
     SpaceBtwVert = 40;
@@ -25,7 +26,6 @@ type
     scrlbBackground: TScrollBox;
     procedure FormCreate(Sender: TObject);
     procedure AddImgClick(Sender: TObject);
-    procedure BkClick(Sender: TObject);
     procedure OnMouseWheelUp(Sender: TObject; Shift: TShiftState; MousePos: TPoint; var Handled: Boolean);
     procedure OnMouseWheelDown(Sender: TObject; Shift: TShiftState; MousePos: TPoint; var Handled: Boolean);
   private
@@ -57,18 +57,6 @@ begin
   end;
 end;
 
-constructor TBkImage.Create(AOwner: TComponent; X: Integer; Y: Integer; ImgPath: string);
-begin
-  inherited Create(AOwner);
-  Parent := TWinControl(AOwner);
-  Picture.LoadFromFile(ImgPath);
-  Stretch := True;
-  Height := TBkImage.BkHeight;
-  Width := TBkImage.BkWidth;
-  Top := Y;
-  Left := X;
-end;
-
 procedure TBackMenuForm.OnMouseWheelUp(Sender: TObject; Shift: TShiftState; MousePos: TPoint; var Handled: Boolean);
 begin
   scrlbBackground.VertScrollBar.Position := scrlbBackground.VertScrollBar.Position - Integer(VertScrollBar.Increment);
@@ -92,7 +80,6 @@ begin
       CopyFile(PChar(BkPictureDialog.FileName), PChar(FilePath), False);
 
       Tmp := TBkImage.Create(scrlbBackground, CurrLeft, CurrTop - scrlbBackground.VertScrollBar.Position, FilePath);
-      Tmp.OnClick := BkClick;
       IncCoordinates;
 
       AddBkIcon.Top := CurrTop - scrlbBackground.VertScrollBar.Position;
@@ -102,12 +89,6 @@ begin
     end
     else
       raise Exception.Create('File does not exist.');
-end;
-
-procedure TBackMenuForm.BkClick(Sender: TObject);
-begin
-  FBkPict := TImage(Sender).Picture;
-  BackMenuForm.Close;
 end;
 
 procedure TBackMenuForm.FormCreate(Sender: TObject);
@@ -125,7 +106,6 @@ begin
   for BkPath in BkFileNames do
   begin
     Tmp := TBkImage.Create(scrlbBackground, CurrLeft, CurrTop, BkPath);
-    Tmp.OnClick := BkClick;
     IncCoordinates;
   end;
 
@@ -144,6 +124,27 @@ begin
   end;
 
   scrlbBackground.VertScrollBar.Range := CurrTop + TBkImage.BkHeight + TBkImage.SpaceBtwVert;
+end;
+
+{ TBkImage }
+
+procedure TBkImage.BkClick(Sender: TObject);
+begin
+  (Self.Parent.Parent as TBackMenuForm).FBkPict := TImage(Sender).Picture;
+  (Self.Parent.Parent as TBackMenuForm).Close;
+end;
+
+constructor TBkImage.Create(AOwner: TComponent; X: Integer; Y: Integer; ImgPath: string);
+begin
+  inherited Create(AOwner);
+  OnClick := BkClick;
+  Parent := TWinControl(AOwner);
+  Picture.LoadFromFile(ImgPath);
+  Stretch := True;
+  Height := TBkImage.BkHeight;
+  Width := TBkImage.BkWidth;
+  Top := Y;
+  Left := X;
 end;
 
 end.

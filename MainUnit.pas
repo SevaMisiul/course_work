@@ -5,11 +5,29 @@ interface
 uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants,
   System.Classes, Vcl.Graphics, IOUtils, Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.ExtCtrls, Vcl.StdCtrls,
-  Vcl.Imaging.pngimage, Vcl.Imaging.jpeg, BackMenuUnit, Vcl.ExtDlgs;
+  Vcl.Imaging.pngimage, Vcl.Imaging.jpeg, BackMenuUnit, Vcl.ExtDlgs, Math, ObjectOptionsUnit;
 
 type
-  PixelArray = array [0 .. 32768] of TRGBTriple;
-  PPixelArray = ^PixelArray;
+  TActionType = (actLineMove, actCircleMove);
+
+  TAspectFrac = record
+    Width, Height: Integer;
+  end;
+
+  TACtionInfo = record
+    ActType: TActionType;
+    TimeStart, TimeEnd: Integer;
+  end;
+
+  PActionLI = ^TActionLI;
+
+  TActionLI = record
+    Info: TACtionInfo;
+    Next: PActionLI;
+  end;
+
+  TPixelArray = array [0 .. 32768] of TRGBTriple;
+  PPixelArray = ^TPixelArray;
 
   TObjectIcon = class(TImage)
     procedure ObjectIconMouseDown(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
@@ -18,24 +36,33 @@ type
     SpaceTop = 20;
     ObjectHeight = 90;
     ObjectWidth = 190;
+  private
+    FIsPng: Boolean;
   public
     constructor Create(AOwner: TComponent; Y: Integer; ImgPath: string);
+    { properties }
+    property IsPng: Boolean read FIsPng write FIsPng;
   end;
 
   TObjectImage = class(TImage)
     procedure ObjectImageDblClick(Sender: TObject);
     procedure ObjectImageMouseDown(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
-  private const
-    BaseHeight = 100;
-    BaseWidth = 200;
   private
-    FZoom, FAngle: Real;
+    FOriginPicture: TPicture;
+    FAspectRatio: TAspectFrac;
+    FAngle: Integer;
+    FActionList: PActionLI;
+    FIsPng: Boolean;
   public
-    procedure Rotate1(Angle: Real);
+    constructor Create(AOwner: TComponent; X: Integer; Y: Integer; Pict: TPicture; IsPngExtension: Boolean);
     procedure Rotate(Angle: Real);
-    constructor Create(AOwner: TComponent; X: Integer; Y: Integer; Pict: TPicture);
-    property Zoom: Real read FZoom write FZoom;
-    property Angle: Real read FAngle write FAngle;
+    procedure Resize(NewHeight, NewWidth: Integer; IsProportional: Boolean);
+    procedure ViewImage(Pict: TGraphic);
+    { properties }
+    property Angle: Integer read FAngle write FAngle;
+    property AspectRatio: TAspectFrac read FAspectRatio;
+    property OriginPicture: TPicture read FOriginPicture;
+    property IsPng: Boolean read FIsPng;
   end;
 
   TMainForm = class(TForm)
@@ -56,11 +83,11 @@ type
     procedure FormDragDrop(Sender, Source: TObject; X, Y: Integer);
     procedure imgPanelCloseClick(Sender: TObject);
   private
-    SelectedPicture: TPicture;
-    WaitingFormClick: Boolean;
-    AddObjectIcon: TImage;
+    FSelectedPicture: TPicture;
+    FWaitingFormClick, FIsSelectedPng: Boolean;
+    FAddObjectIcon: TImage;
     FObjectPanelTop: Integer;
-    ObjectFileNames: System.TArray<string>;
+    FObjectFileNames: System.TArray<string>;
     procedure SwitchPanel;
   public
     property ObjectPanelTop: Integer read FObjectPanelTop write FObjectPanelTop;
@@ -72,6 +99,23 @@ var
 implementation
 
 {$R *.dfm}
+
+function GCD(A, B: Integer): Integer;
+begin
+  if B = 0 then
+    result := A
+  else
+    result := GCD(B, A mod B);
+end;
+
+procedure ReduceFraction(var Frac: TAspectFrac);
+var
+  Tmp: Integer;
+begin
+  Tmp := GCD(Frac.Width, Frac.Height);
+  Frac.Width := Frac.Width div Tmp;
+  Frac.Height := Frac.Height div Tmp;
+end;
 
 procedure TMainForm.AddImgClick(Sender: TObject);
 var
@@ -88,7 +132,7 @@ begin
       Tmp := TObjectIcon.Create(scrlbObjects, ObjectPanelTop - scrlbObjects.VertScrollBar.Position, FilePath);
       ObjectPanelTop := ObjectPanelTop + TObjectIcon.SpaceTop + TObjectIcon.ObjectHeight;
 
-      AddObjectIcon.Top := ObjectPanelTop - scrlbObjects.VertScrollBar.Position;
+      FAddObjectIcon.Top := ObjectPanelTop - scrlbObjects.VertScrollBar.Position;
 
       scrlbObjects.VertScrollBar.Range := ObjectPanelTop + TObjectIcon.SpaceTop + TObjectIcon.ObjectHeight;
     end
@@ -112,14 +156,12 @@ end;
 procedure TMainForm.FormClick(Sender: TObject);
 var
   MousePos: TPoint;
-  Tmp: TObjectImage;
 begin
-  if WaitingFormClick then
+  if FWaitingFormClick then
   begin
     GetCursorPos(MousePos);
-    Tmp := TObjectImage.Create(Self, MousePos.X - TObjectImage.BaseWidth div 2,
-      MousePos.Y - TObjectImage.BaseHeight div 2, SelectedPicture);
-    WaitingFormClick := False;
+    TObjectImage.Create(Self, MousePos.X, MousePos.Y, FSelectedPicture, FIsSelectedPng);
+    FWaitingFormClick := False;
   end;
 end;
 
@@ -132,19 +174,19 @@ begin
   CreateDir('backgrounds');
   CreateDir('Icons');
   CreateDir('objects');
-  ObjectFileNames := TDirectory.GetFiles('objects');
+  FObjectFileNames := TDirectory.GetFiles('objects');
   ObjectPanelTop := 20;
-  WaitingFormClick := False;
+  FWaitingFormClick := False;
 
-  for Path in ObjectFileNames do
+  for Path in FObjectFileNames do
   begin
     Tmp := TObjectIcon.Create(scrlbObjects, ObjectPanelTop, Path);
     ObjectPanelTop := ObjectPanelTop + TObjectIcon.SpaceTop + TObjectIcon.ObjectHeight;
   end;
 
-  AddObjectIcon := TObjectIcon.Create(scrlbObjects, ObjectPanelTop, 'icons\addicon.png');
-  AddObjectIcon.OnClick := AddImgClick;
-  AddObjectIcon.DragMode := dmManual;
+  FAddObjectIcon := TObjectIcon.Create(scrlbObjects, ObjectPanelTop, 'icons\addicon.png');
+  FAddObjectIcon.OnClick := AddImgClick;
+  FAddObjectIcon.DragMode := dmManual;
 
   scrlbObjects.VertScrollBar.Range := ObjectPanelTop + TObjectIcon.SpaceTop + TObjectIcon.ObjectHeight;
 end;
@@ -153,13 +195,13 @@ procedure TMainForm.FormDragDrop(Sender, Source: TObject; X, Y: Integer);
 begin
   if Source is TObjectIcon then
   begin
-    TObjectImage.Create(Self, X - TObjectImage.BaseWidth div 2, Y - TObjectImage.BaseHeight div 2, SelectedPicture);
-    WaitingFormClick := False;
+    TObjectImage.Create(Self, X, Y, FSelectedPicture, FIsSelectedPng);
+    FWaitingFormClick := False;
   end
   else
   begin
-    (Source as TObjectImage).Left := X - TObjectImage.BaseWidth div 2;
-    (Source as TObjectImage).Top := Y - TObjectImage.BaseHeight div 2;
+    (Source as TObjectImage).Left := X - (Source as TObjectImage).Width div 2;
+    (Source as TObjectImage).Top := Y - (Source as TObjectImage).Height div 2;
   end;
 end;
 
@@ -226,77 +268,210 @@ begin
   Width := ObjectWidth;
   Top := Y;
   Left := SpaceLeft;
+  IsPng := (Copy(ImgPath, Pos('.', ImgPath)) = '.png');
 end;
 
 procedure TObjectIcon.ObjectIconMouseDown(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
 begin
   TControl(Sender).BeginDrag(False);
-  (Self.Parent.Parent as TMainForm).WaitingFormClick := True;
-  (Self.Parent.Parent as TMainForm).SelectedPicture := TImage(Sender).Picture;
+  (Self.Parent.Parent as TMainForm).FIsSelectedPng := TObjectIcon(Sender).IsPng;
+  (Self.Parent.Parent as TMainForm).FWaitingFormClick := True;
+  (Self.Parent.Parent as TMainForm).FSelectedPicture := TImage(Sender).Picture;
   (Self.Parent.Parent as TMainForm).SwitchPanel;
 end;
 
 { TObjectImage }
 
-constructor TObjectImage.Create(AOwner: TComponent; X, Y: Integer; Pict: TPicture);
+constructor TObjectImage.Create(AOwner: TComponent; X: Integer; Y: Integer; Pict: TPicture; IsPngExtension: Boolean);
 begin
   inherited Create(AOwner);
+
+  Parent := TWinControl(AOwner);
+  Proportional := True;
+  Stretch := True;
+  Center := True;
+  Picture.Assign(Pict);
+  Height := Picture.Graphic.Height;
+  Width := Picture.Graphic.Width;
+  Top := Y - Height div 2;
+  Left := X - Width div 2;
+
   OnDblClick := ObjectImageDblClick;
   OnMouseDown := ObjectImageMouseDown;
-  Parent := TWinControl(AOwner);
-  Picture := Pict;
-  Proportional := True;
-  Center := True;
-  Height := BaseHeight;
-  Width := BaseWidth;
-  Top := Y;
-  Left := X;
+
+  FIsPng := IsPngExtension;
+  FActionList := nil;
+  FAspectRatio.Width := Width;
+  FAspectRatio.Height := Height;
+  ReduceFraction(FAspectRatio);
+  FOriginPicture := TPicture.Create;
+  FOriginPicture.Assign(Pict.Graphic);
 end;
 
 procedure TObjectImage.ObjectImageDblClick(Sender: TObject);
 begin
-  Rotate1(30);
+  with ObjectOptionsForm do
+  begin
+    WidthRatio := AspectRatio.Width;
+    HeightRatio := AspectRatio.Height;
+    chbIsProportional.Checked := Self.Proportional;
+    edtHeight.Text := IntToStr(OriginPicture.Graphic.Height);
+    edtWidth.Text := IntToStr(OriginPicture.Graphic.Width);
+    edtTop.Text := IntToStr(Self.Top + Self.Height div 2);
+    edtLeft.Text := IntToStr(Self.Left + Self.Width div 2);
+    edtAngle.Text := IntToStr(Self.Angle);
+    Pict.Assign(OriginPicture);
+
+    { fill list }
+
+    ShowModal;
+    if IsConfirm then
+    begin
+      // Resize(StrToInt(edtHeight.Text), StrToInt(edtWidth.Text), chbIsProportional.Checked);
+      Angle := StrToInt(edtAngle.Text);
+      Rotate(Angle);
+      Self.Top := StrToInt(edtTop.Text) - Self.Height div 2;
+      Self.Left := StrToInt(edtLeft.Text) - Self.Width div 2;
+    end;
+  end;
+
 end;
 
 procedure TObjectImage.ObjectImageMouseDown(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
 begin
   Sleep(100);
   if (GetKeyState(VK_LBUTTON) and $8000) <> 0 then
-    TControl(Sender).BeginDrag(False)
+    TControl(Sender).BeginDrag(False);
+end;
+
+procedure TObjectImage.Resize(NewHeight, NewWidth: Integer; IsProportional: Boolean);
+var
+  Bmp: TBitMap;
+begin
+  Self.Proportional := IsProportional;
+  Bmp := TBitMap.Create;
+  Bmp.Assign(OriginPicture.Graphic);
+  Bmp.Canvas.StretchDraw(Rect(0, 0, NewWidth, NewHeight), Bmp);
+  OriginPicture.Assign(Bmp);
+  ViewImage(OriginPicture.Graphic);
 end;
 
 procedure TObjectImage.Rotate(Angle: Real);
 var
   SinRad, CosRad, AngleRad: Real;
-  Row1, Row2: PPixelArray;
-  OldBmp, RotatedBmp: TBitmap;
-  Y, X, NewX, NewY: Integer;
+  RowSource, RowDest: PPixelArray;
+  Y, X, I, DestColorType: Integer;
+  SourcePoint, SourceCenter, DestCenter, MaxP, MinP: TPoint;
+  Corners: array [1 .. 4] of TPoint;
+  SourcePict, DestPict: TPNGObject;
+  SourceBmp, DestBmp: TBitMap;
+  DestAlpha, SourceAlpha: PByteArray;
+  IsAlpha: Boolean;
 begin
-  OldBmp := TBitmap.Create;
-  OldBmp.Assign(Picture.Graphic);
-  OldBmp.PixelFormat := pf24bit;
-  RotatedBmp := TBitmap.Create;
-  RotatedBmp.SetSize(OldBmp.Width, OldBmp.Height);
-  RotatedBmp.PixelFormat := pf24bit;
   AngleRad := Angle * Pi / 180;
   SinRad := Sin(AngleRad);
   CosRad := Cos(AngleRad);
 
-  for Y := 0 to OldBmp.Height - 1 do
+  if IsPng then
   begin
-    Row1 := RotatedBmp.ScanLine[Y];
-    for X := 0 to OldBmp.Width - 1 do
+    SourcePict := TPNGObject.Create;
+    SourcePict.Assign(OriginPicture.Graphic);
+    IsAlpha := (SourcePict.Header.ColorType = COLOR_RGBALPHA);
+  end
+  else
+  begin
+    SourceBmp := TBitMap.Create;
+    SourceBmp.Assign(OriginPicture.Graphic);
+  end;
+
+  SourceCenter.Y := OriginPicture.Height div 2;
+  SourceCenter.X := OriginPicture.Width div 2;
+
+  Corners[1].X := -SourceCenter.X;
+  Corners[1].Y := -SourceCenter.Y;
+  Corners[2].X := Corners[1].X;
+  Corners[2].Y := OriginPicture.Height - SourceCenter.Y;
+  Corners[3].X := OriginPicture.Width - SourceCenter.X;
+  Corners[3].Y := Corners[2].Y;
+  Corners[4].X := Corners[3].X;
+  Corners[4].Y := Corners[1].Y;
+
+  for I := 1 to 4 do
+  begin
+    X := Corners[I].X;
+    Y := Corners[I].Y;
+    Corners[I].X := Round(CosRad * X + SinRad * Y);
+    Corners[I].Y := Round(-SinRad * X + CosRad * Y);
+  end;
+  MaxP.X := Max(Max(Max(Corners[1].X, Corners[2].X), Corners[3].X), Corners[4].X);
+  MinP.X := Min(Min(Min(Corners[1].X, Corners[2].X), Corners[3].X), Corners[4].X);
+  MaxP.Y := Max(Max(Max(Corners[1].Y, Corners[2].Y), Corners[3].Y), Corners[4].Y);
+  MinP.Y := Min(Min(Min(Corners[1].Y, Corners[2].Y), Corners[3].Y), Corners[4].Y);
+
+  if IsPng then
+  begin
+    DestPict := TPNGObject.Create;
+    DestPict.CreateBlank(COLOR_RGBALPHA, 8, MaxP.X - MinP.X + 1, MaxP.Y - MinP.Y + 1);
+  end
+  else
+  begin
+    DestBmp := TBitMap.Create;
+    DestBmp.SetSize(MaxP.X - MinP.X + 1, MaxP.Y - MinP.Y + 1);
+    DestBmp.PixelFormat := pf24bit;
+  end;
+
+  DestCenter.X := (MaxP.X - MinP.X + 1) div 2;
+  DestCenter.Y := (MaxP.Y - MinP.Y + 1) div 2;
+
+  for Y := MinP.Y to MaxP.Y - 1 do
+  begin
+    if IsPng then
+      RowDest := DestPict.ScanLine[Y + DestCenter.Y]
+    else
+      RowDest := DestBmp.ScanLine[Y + DestCenter.Y];
+    if IsPng and IsAlpha then
+      SourceAlpha := DestPict.AlphaScanline[Y + DestCenter.Y];
+    for X := MinP.X to MaxP.X - 1 do
     begin
-      NewX := Round(CosRad * X - SinRad * Y);
-      NewY := Round(SinRad * X - CosRad * Y);
-      if (NewX >= 0) and (NewX < OldBmp.Width) and (NewY >= 0) and (NewY < OldBmp.Height) then
+      SourcePoint.X := Round(CosRad * X - SinRad * Y) + SourceCenter.X;
+      SourcePoint.Y := Round(SinRad * X + CosRad * Y) + SourceCenter.Y;
+      if (SourcePoint.X >= 0) and (SourcePoint.X < OriginPicture.Width) and (SourcePoint.Y >= 0) and
+        (SourcePoint.Y < OriginPicture.Height) then
       begin
-        Row2 := OldBmp.ScanLine[NewY];
-        Row1[X] := Row2[NewX];
+        if IsPng then
+          RowSource := SourcePict.ScanLine[SourcePoint.Y]
+        else
+          RowSource := SourceBmp.ScanLine[SourcePoint.Y];
+        RowDest[X + DestCenter.X] := RowSource[SourcePoint.X];
+
+        if IsPng and IsAlpha then
+        begin
+          DestAlpha := SourcePict.AlphaScanline[SourcePoint.Y];
+          SourceAlpha[X + DestCenter.X] := DestAlpha[SourcePoint.X];
+        end;
       end;
     end;
   end;
-  MainForm.Canvas.Draw(300, 300, RotatedBmp);
+
+  if IsPng then
+  begin
+    ViewImage(DestPict);
+    DestPict.Free;
+    SourcePict.Free;
+  end
+  else
+  begin
+    ViewImage(DestBmp);
+    DestBmp.Free;
+    SourceBmp.Free;
+  end;
+end;
+
+procedure TObjectImage.ViewImage(Pict: TGraphic);
+begin
+  Picture.Assign(Pict);
+  Height := Pict.Height;
+  Width := Pict.Width;
 end;
 
 end.

@@ -10,6 +10,7 @@ object MainForm: TMainForm
   Font.Height = -11
   Font.Name = 'Tahoma'
   Font.Style = []
+  Menu = MainMenu
   OldCreateOrder = False
   Position = poScreenCenter
   WindowState = wsMaximized
@@ -2127,5 +2128,22 @@ object MainForm: TMainForm
   object OpenObjectIconDialog: TOpenPictureDialog
     Left = 96
     Top = 80
+  end
+  object MainMenu: TMainMenu
+    Left = 104
+    Top = 16
+    object RunAnimation1: TMenuItem
+      Action = actRunAnimation
+      Caption = 'Run animation'
+    end
+  end
+  object alMenuActions: TActionList
+    Left = 616
+    Top = 576
+    object actRunAnimation: TAction
+      Caption = 'actRunAnimation'
+      ShortCut = 120
+      OnExecute = actRunAnimationExecute
+    end
   end
 end

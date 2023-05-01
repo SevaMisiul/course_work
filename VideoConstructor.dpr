@@ -6,7 +6,9 @@ uses
   BackMenuUnit in 'BackMenuUnit.pas' {BackMenuForm},
   Vcl.Themes,
   Vcl.Styles,
-  ObjectOptionsUnit in 'ObjectOptionsUnit.pas' {ObjectOptionsForm};
+  ObjectOptionsUnit in 'ObjectOptionsUnit.pas' {ObjectOptionsForm},
+  ActionEditUnit in 'ActionEditUnit.pas' {ActionEditForm},
+  ObjectUnit in 'ObjectUnit.pas';
 
 {$R *.res}
 
@@ -16,5 +18,6 @@ begin
   Application.CreateForm(TMainForm, MainForm);
   Application.CreateForm(TBackMenuForm, BackMenuForm);
   Application.CreateForm(TObjectOptionsForm, ObjectOptionsForm);
+  Application.CreateForm(TActionEditForm, ActionEditForm);
   Application.Run;
 end.

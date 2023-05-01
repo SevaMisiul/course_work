@@ -4,7 +4,8 @@ interface
 
 uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
-  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, Vcl.ExtCtrls, Vcl.ComCtrls, Math, Vcl.Imaging.pngimage;
+  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, Vcl.ExtCtrls, Vcl.ComCtrls, Math, Vcl.Imaging.pngimage,
+  ActionEditUnit, ObjectUnit;
 
 type
   TObjectOptionsForm = class(TForm)
@@ -15,7 +16,7 @@ type
     lbWidth: TLabel;
     edtAngle: TEdit;
     lbAngle: TLabel;
-    ListView1: TListView;
+    lvActions: TListView;
     lbActions: TLabel;
     btnAddAction: TButton;
     btnOk: TButton;
@@ -25,6 +26,8 @@ type
     lbLeft: TLabel;
     edtTop: TEdit;
     edtLeft: TEdit;
+    btnDeleteAction: TButton;
+    btnDeleteObject: TButton;
     procedure FormCreate(Sender: TObject);
     procedure btnOkClick(Sender: TObject);
     procedure btnCancelClick(Sender: TObject);
@@ -32,15 +35,23 @@ type
     procedure edtHeightChange(Sender: TObject);
     procedure edtWidthChange(Sender: TObject);
     procedure FormShow(Sender: TObject);
+    procedure btnDeleteObjectClick(Sender: TObject);
+    procedure btnAddActionClick(Sender: TObject);
   private
     FPicture: TPicture;
+    FObjectOwner: TObjectImage;
     FIsConfirm: Boolean;
+    FIsDeleting: Boolean;
     FHeightRatio, FWidthRatio: Integer;
   public
+    procedure AddListViewItem(ActType: TActionType; TimeStart, TimeEnd: Integer);
+    { properties }
+    property ObjectOwner: TObjectImage read FObjectOwner write FObjectOwner;
     property Pict: TPicture read FPicture write FPicture;
     property HeightRatio: Integer read FHeightRatio write FHeightRatio;
     property WidthRatio: Integer read FWidthRatio write FWidthRatio;
     property IsConfirm: Boolean read FIsConfirm;
+    property ISDeleting: Boolean read FIsDeleting;
   end;
 
 var
@@ -50,14 +61,78 @@ implementation
 
 {$R *.dfm}
 
+procedure FillActionEditForm(StartT, EndT: Integer; StartPoint, EndPoint: TPoint; DefaultAction: TActionType = TActionType(0));
+var
+  Act: TActionType;
+begin
+  with ActionEditForm do
+  begin
+    for Act := Low(TActionType) to High(TActionType) do
+    begin
+      cbActionType.Items.Add(ActionNames[Act]);
+    end;
+    cbActionType.ItemIndex := Ord(DefaultAction);
+    edtTimeStart.Text := IntToStr(StartT);
+    edtTimeEnd.Text := IntToStr(EndT);
+    edtStartPointX.Text := IntToStr(StartPoint.X);
+    edtStartPointY.Text := IntToStr(StartPoint.Y);
+    edtEndPointX.Text := IntToStr(EndPoint.X);
+    edtEndPointY.Text := IntToStr(EndPoint.Y);
+  end;
+end;
+
+procedure TObjectOptionsForm.AddListViewItem(ActType: TActionType; TimeStart, TimeEnd: Integer);
+begin
+  with lvActions.Items.Add do
+  begin
+    Caption := ActionNames[ActType];
+    SubItems.Add(IntToStr(TimeStart));
+    SubItems.Add(IntToStr(TimeEnd));
+  end;
+end;
+
+procedure TObjectOptionsForm.btnAddActionClick(Sender: TObject);
+var
+  Act: TActionInfo;
+begin
+  FillActionEditForm(0, 0, Point(0, 0), Point(0, 0));
+  ActionEditForm.ShowModal;
+  if ActionEditForm.IsConfirm then
+  begin
+    with ActionEditForm, Act do
+    begin
+      ActType := TActionType(cbActionType.ItemIndex);
+      TimeStart := StrToInt(edtTimeStart.Text);
+      TimeEnd := StrToInt(edtTimeEnd.Text);
+      StartPoint := Point(StrToInt(edtStartPointX.Text), StrToInt(edtStartPointY.Text));
+      EndPoint := Point(StrToInt(edtEndPointX.Text), StrToInt(edtEndPointY.Text));
+      AddListViewItem(ActType, TimeStart, TimeEnd);
+    end;
+    ObjectOwner.AddAction(Act);
+  end;
+end;
+
 procedure TObjectOptionsForm.btnCancelClick(Sender: TObject);
 begin
   Close;
 end;
 
+procedure TObjectOptionsForm.btnDeleteObjectClick(Sender: TObject);
+var
+  ClickedBtn: Integer;
+begin
+  ClickedBtn := MessageDlg('Are you sure you want to delete the object', mtWarning, [mbYes, mbNo], 0);
+  if ClickedBtn = 6 then
+  begin
+    FIsDeleting := True;
+    Close;
+  end;
+end;
+
 procedure TObjectOptionsForm.btnOkClick(Sender: TObject);
 begin
-  if (edtHeight.Text <> '') and (edtHeight.Text <> '') and (edtAngle.Text <> '') then
+  if (edtHeight.Text <> '') and (edtHeight.Text <> '') and (edtAngle.Text <> '') and (edtTop.Text <> '') and
+    (edtLeft.Text <> '') then
   begin
     FIsConfirm := True;
     Close;
@@ -90,6 +165,7 @@ end;
 procedure TObjectOptionsForm.FormShow(Sender: TObject);
 begin
   FIsConfirm := False;
+  FIsDeleting := False;
 end;
 
 procedure TObjectOptionsForm.pbPicturePaint(Sender: TObject);

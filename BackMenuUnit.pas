@@ -6,7 +6,7 @@ uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants,
   System.Classes, Vcl.Graphics, Vcl.Controls, Vcl.Forms, Vcl.Dialogs,
   Vcl.StdCtrls, IOUtils, System.ImageList, Vcl.ImgList, Vcl.ExtCtrls,
-  Vcl.Imaging.pngimage, ShellApi, Vcl.ExtDlgs;
+  Vcl.Imaging.pngimage, ShellApi, Vcl.ExtDlgs, StrUtils;
 
 type
   TBkImage = class(TImage)
@@ -69,14 +69,15 @@ end;
 
 procedure TBackMenuForm.AddImgClick(Sender: TObject);
 var
-  FilePath: string;
+  FilePath, FileExtension, Rever: string;
   Tmp: TBkImage;
 begin
   if BkPictureDialog.Execute then
     if FileExists(BkPictureDialog.FileName) then
     begin
-      FilePath := 'backgrounds\' + IntToStr(scrlbBackground.ControlCount) + Copy(BkPictureDialog.FileName,
-        Pos('.', BkPictureDialog.FileName));
+      Rever := ReverseString(BkPictureDialog.FileName);
+      FileExtension := ReverseString(Copy(Rever, 1, Pos('.', Rever)));
+      FilePath := 'backgrounds\' + IntToStr(scrlbBackground.ControlCount) + FileExtension;
       CopyFile(PChar(BkPictureDialog.FileName), PChar(FilePath), False);
 
       Tmp := TBkImage.Create(scrlbBackground, CurrLeft, CurrTop - scrlbBackground.VertScrollBar.Position, FilePath);

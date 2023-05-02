@@ -6,7 +6,7 @@ uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants,
   System.Classes, Vcl.Graphics, IOUtils, Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.ExtCtrls, Vcl.StdCtrls,
   Vcl.Imaging.pngimage, Vcl.Imaging.jpeg, BackMenuUnit, Vcl.ExtDlgs, Math, System.Actions, Vcl.ActnList, Vcl.Menus,
-  ObjectUnit;
+  ObjectUnit, StrUtils;
 
 type
   TObjectIcon = class(TImage)
@@ -104,17 +104,18 @@ end;
 
 procedure TMainForm.AddImgClick(Sender: TObject);
 var
-  FilePath: string;
+  FilePath, FileExtension, Rever: string;
   Tmp: TObjectIcon;
 begin
   if OpenObjectIconDialog.Execute then
     if FileExists(OpenObjectIconDialog.FileName) then
     begin
-      FilePath := 'objects\' + IntToStr(scrlbObjects.ControlCount) + Copy(OpenObjectIconDialog.FileName,
-        Pos('.', OpenObjectIconDialog.FileName));
+      Rever := ReverseString(OpenObjectIconDialog.FileName);
+      FileExtension := ReverseString(Copy(Rever, 1, Pos('.', Rever)));
+      FilePath := 'objects\' + IntToStr(scrlbObjects.ControlCount - 1) + FileExtension;
       CopyFile(PChar(OpenObjectIconDialog.FileName), PChar(FilePath), False);
 
-      Tmp := TObjectIcon.Create(scrlbObjects, ObjectPanelTop - scrlbObjects.VertScrollBar.Position, FilePath);
+      TObjectIcon.Create(scrlbObjects, ObjectPanelTop - scrlbObjects.VertScrollBar.Position, FilePath);
       ObjectPanelTop := ObjectPanelTop + TObjectIcon.SpaceTop + TObjectIcon.ObjectHeight;
 
       FAddObjectIcon.Top := ObjectPanelTop - scrlbObjects.VertScrollBar.Position;
@@ -196,13 +197,13 @@ begin
 
   for Path in FObjectFileNames do
   begin
-    Tmp := TObjectIcon.Create(scrlbObjects, ObjectPanelTop, Path);
+    TObjectIcon.Create(scrlbObjects, ObjectPanelTop, Path);
     ObjectPanelTop := ObjectPanelTop + TObjectIcon.SpaceTop + TObjectIcon.ObjectHeight;
   end;
 
   FAddObjectIcon := TObjectIcon.Create(scrlbObjects, ObjectPanelTop, 'icons\addicon.png');
   FAddObjectIcon.OnClick := AddImgClick;
-  FAddObjectIcon.DragMode := dmManual;
+  FAddObjectIcon.OnMouseDown := nil;
 
   scrlbObjects.VertScrollBar.Range := ObjectPanelTop + TObjectIcon.SpaceTop + TObjectIcon.ObjectHeight;
 end;

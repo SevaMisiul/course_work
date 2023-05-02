@@ -67,6 +67,7 @@ var
 begin
   with ActionEditForm do
   begin
+    cbActionType.Clear;
     for Act := Low(TActionType) to High(TActionType) do
     begin
       cbActionType.Items.Add(ActionNames[Act]);

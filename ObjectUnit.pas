@@ -4,7 +4,8 @@ interface
 
 uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants,
-  System.Classes, Vcl.Graphics, IOUtils, Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.ExtCtrls, Vcl.StdCtrls,
+  System.Classes, Vcl.Graphics, IOUtils, Vcl.Controls, Vcl.Forms, Vcl.Dialogs,
+  Vcl.ExtCtrls, Vcl.StdCtrls,
   Vcl.Imaging.pngimage, Vcl.Imaging.jpeg, Vcl.ExtDlgs, Math;
 
 type
@@ -120,7 +121,7 @@ procedure SetChanges(var Obj: TObjectImage);
 begin
   with ObjectOptionsForm do
   begin
-    if (Obj.OriginPicture.Height <> StrToInt(edtHeight.Text)) and (Obj.OriginPicture.Width <> StrToInt(edtWidth.Text))
+    if (Obj.OriginPicture.Height <> StrToInt(edtHeight.Text)) or (Obj.OriginPicture.Width <> StrToInt(edtWidth.Text))
     then
       Obj.Resize(StrToInt(edtHeight.Text), StrToInt(edtWidth.Text), chbIsProportional.Checked);
     if Obj.Angle <> StrToInt(edtAngle.Text) then
@@ -486,8 +487,9 @@ begin
       Inc(FCurrTime, TimeInc);
       while Tmp <> nil do
       begin
-        Buff.Canvas.Draw(Tmp^.ObjectImage.CurrCoordinates.X, Tmp^.ObjectImage.CurrCoordinates.Y,
-          Tmp^.ObjectImage.Picture.Graphic);
+        with Tmp^.ObjectImage do
+          Buff.Canvas.Draw(CurrCoordinates.X - Picture.Width div 2, CurrCoordinates.Y - Picture.Height div 2,
+            Picture.Graphic);
         Tmp := Tmp^.Next;
       end;
       (Parent as TMainForm).Canvas.Draw(0, 0, Buff);

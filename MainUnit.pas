@@ -89,11 +89,11 @@ begin
   begin
     with Tmp^.ObjectImage do
     begin
-      if ActionList^.Next <> nil then
+      if ActionList[0] <> nil then
       begin
-        CurrTime := ActionList^.Next^.Info.TimeStart * 1000;
-        CurrAction := ActionList^.Next;
-        CurrCoordinates := ActionList^.Next^.Info.StartPoint;
+        CurrTime := ActionList[0]^.Info.TimeStart * 1000;
+        CurrAction := ActionList[0];
+        CurrCoordinates := ActionList[0]^.Info.StartPoint;
       end;
       Timer.Enabled := True;
       Timer.Interval := 15;

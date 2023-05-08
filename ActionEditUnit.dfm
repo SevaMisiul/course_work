@@ -13,7 +13,8 @@ object ActionEditForm: TActionEditForm
   Font.Style = []
   OldCreateOrder = False
   Position = poScreenCenter
-  OnShow = FormShow
+  OnCloseQuery = FormCloseQuery
+  OnCreate = FormCreate
   PixelsPerInch = 96
   TextHeight = 13
   object lbActionType: TLabel
@@ -160,9 +161,9 @@ object ActionEditForm: TActionEditForm
     Font.Height = -16
     Font.Name = 'Tahoma'
     Font.Style = []
+    ModalResult = 2
     ParentFont = False
     TabOrder = 7
-    OnClick = btnCancelClick
   end
   object btnOk: TButton
     Left = 125
@@ -175,9 +176,9 @@ object ActionEditForm: TActionEditForm
     Font.Height = -16
     Font.Name = 'Tahoma'
     Font.Style = []
+    ModalResult = 1
     ParentFont = False
     TabOrder = 8
-    OnClick = btnOkClick
   end
   object edtStartPointX: TEdit
     Left = 200

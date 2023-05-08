@@ -31,6 +31,12 @@ type
   TPixelArray = array [0 .. 32768] of TRGBTriple;
   PPixelArray = ^TPixelArray;
 
+  TOnActionListChanged = procedure(Header: PActionLI) of object;
+
+  TOnActionDelete = procedure of object;
+
+  TOnActionChanged = procedure(Act: TActionInfo) of object;
+
   TObjectImage = class(TImage)
     Timer: TTimer;
     procedure ObjectImageDblClick(Sender: TObject);
@@ -46,7 +52,15 @@ type
     FIsPng: Boolean;
     FCurrTime: Integer;
     FIndex: Integer;
+    FActionBuff: TBitmap;
+    FUpdateActionList: TOnActionListChanged;
+    FUpdateActionAfterDelete: TOnActionDelete;
+    FUpdateOneAction: TOnActionChanged;
     procedure SetCurrCoordinates(const Value: TPoint);
+    procedure SetUpdateActionList(const Value: TOnActionListChanged);
+    procedure SetUpdateAfterDelete(const Value: TOnActionDelete);
+    procedure SetUpdateOneAction(const Value: TOnActionChanged);
+    function GetActionItem(Index: Integer): PActionLI;
   public
     constructor Create(AOwner: TComponent; X: Integer; Y: Integer; Pict: TPicture; IsPngExtension: Boolean);
     destructor Destroy;
@@ -54,11 +68,17 @@ type
     procedure Resize(NewHeight, NewWidth: Integer; IsProportional: Boolean);
     procedure ViewImage(Pict: TGraphic);
     procedure AddAction(Act: TACtionInfo);
+    procedure SetAction(P: PActionLI; Act: TActionInfo);
+    procedure DeleteAction(Index: Integer);
     { properties }
+    property UpdateOneAction: TOnActionChanged read FUpdateOneAction write SetUpdateOneAction;
+    property UpdateActionAfterDelete: TOnActionDelete read FUpdateActionAfterDelete write SetUpdateAfterDelete;
+    property UpdateActionList: TOnActionListChanged read FUpdateActionList write SetUpdateActionList;
     property CurrCoordinates: TPoint read FCurrCoordinates write SetCurrCoordinates;
     property CurrAction: PActionLI read FCurrAction write FCurrAction;
     property CurrTime: Integer read FCurrTime write FCurrTime;
-    property ActionList: PActionLI read FActionList write FActionList;
+    property ActionList[Index: Integer]: PActionLI read GetActionItem;
+    property EndActionList: PActionLI read FEndList;
     property Angle: Integer read FAngle;
     property AspectRatio: TAspectFrac read FAspectRatio;
     property OriginPicture: TPicture read FOriginPicture;
@@ -107,11 +127,11 @@ begin
     Pict.Assign(Obj.OriginPicture);
     ObjectOwner := Obj;
 
-    Tmp := Obj.ActionList^.Next;
+    Tmp := Obj.FActionList^.Next;
     lvActions.Clear;
     while Tmp <> nil do
     begin
-      AddListViewItem(Tmp^.Info.ActType, Tmp^.Info.TimeStart, Tmp^.Info.TimeEnd);
+
       Tmp := Tmp^.Next;
     end;
   end;
@@ -136,13 +156,19 @@ end;
 
 procedure TObjectImage.AddAction(Act: TACtionInfo);
 var
-  Tmp: PActionLI;
+  TmpNew, Tmp: PActionLI;
 begin
-  new(Tmp);
-  Tmp^.Info := Act;
-  Tmp^.Next := nil;
-  FEndList^.Next := Tmp;
-  FEndList := Tmp;
+  new(TmpNew);
+  TmpNew^.Info := Act;
+  Tmp := FActionList;
+  while (Tmp^.Next <> nil) and (Tmp^.Next^.Info.TimeStart < Act.TimeStart) do
+    Tmp := Tmp^.Next;
+  TmpNew^.Next := Tmp^.Next;
+  Tmp^.Next := TmpNew;
+  if FEndList = Tmp then
+    FEndList := TmpNew;
+  if Assigned(UpdateActionList) then
+    UpdateActionList(FActionList^.Next);
 end;
 
 constructor TObjectImage.Create(AOwner: TComponent; X: Integer; Y: Integer; Pict: TPicture; IsPngExtension: Boolean);
@@ -172,6 +198,8 @@ begin
   Timer.Enabled := False;
   Timer.OnTimer := TimerAction;
 
+  FActionBuff := TBitmap.Create;
+  FActionBuff.SetSize(TMainForm(AOwner).ClientWidth, TMainForm(AOwner).ClientHeight);
   FIsPng := IsPngExtension;
   new(FActionList);
   FEndList := FActionList;
@@ -181,8 +209,35 @@ begin
   ReduceFraction(FAspectRatio);
   FOriginPicture := TPicture.Create;
   FOriginPicture.Assign(Pict.Graphic);
+  UpdateActionList := ObjectOptionsForm.UpdateActionList;
+  UpdateActionAfterDelete := ObjectOptionsForm.UpdateAfterDelete;
+  UpdateOneAction := ObjectOptionsForm.UpdateSelectedAction;
 
   TMainForm(AOwner).AddObject(Self);
+end;
+
+procedure TObjectImage.DeleteAction(Index: Integer);
+var
+  TmpPrev, Tmp: PActionLI;
+  I: Integer;
+begin
+  TmpPrev := FActionList;
+  I := 0;
+  while (TmpPrev^.Next <> nil) and (I <> Index) do
+  begin
+    Inc(I);
+    TmpPrev := TmpPrev^.Next;
+  end;
+  if TmpPrev^.Next <> nil then
+  begin
+    Tmp := TmpPrev^.Next;
+    TmpPrev^.Next := Tmp^.Next;
+    if Tmp = FEndList then
+      FEndList := TmpPrev;
+    Dispose(Tmp);
+  end;
+  if Assigned(UpdateActionAfterDelete) then
+    UpdateActionAfterDelete;
 end;
 
 destructor TObjectImage.Destroy;
@@ -219,6 +274,19 @@ begin
   inherited Destroy;
 end;
 
+function TObjectImage.GetActionItem(Index: Integer): PActionLI;
+var
+  I: Integer;
+begin
+  result := FActionList^.Next;
+  I := 0;
+  while (result <> nil) and (I <> Index) do
+  begin
+    result := result^.Next;
+    Inc(I);
+  end;
+end;
+
 procedure TObjectImage.ObjectImageDblClick(Sender: TObject);
 begin
   with ObjectOptionsForm do
@@ -247,7 +315,7 @@ var
   Y, X, I, DestColorType: Integer;
   SourcePoint, SourceCenter, DestCenter: TPoint;
   SourcePict, DestPict: TPNGObject;
-  SourceBmp, DestBmp: TBitMap;
+  SourceBmp, DestBmp: TBitmap;
   DestAlpha, SourceAlpha: PByteArray;
   IsAlpha: Boolean;
   ScaleX, ScaleY: Real;
@@ -262,7 +330,7 @@ begin
   end
   else
   begin
-    SourceBmp := TBitMap.Create;
+    SourceBmp := TBitmap.Create;
     SourceBmp.Assign(OriginPicture.Graphic);
   end;
 
@@ -279,7 +347,7 @@ begin
   end
   else
   begin
-    DestBmp := TBitMap.Create;
+    DestBmp := TBitmap.Create;
     DestBmp.SetSize(NewWidth, NewHeight);
     DestBmp.PixelFormat := pf24bit;
   end;
@@ -341,7 +409,7 @@ var
   SourcePoint, SourceCenter, DestCenter, MaxP, MinP: TPoint;
   Corners: array [1 .. 4] of TPoint;
   SourcePict, DestPict: TPNGObject;
-  SourceBmp, DestBmp: TBitMap;
+  SourceBmp, DestBmp: TBitmap;
   DestAlpha, SourceAlpha: PByteArray;
   IsAlpha: Boolean;
 begin
@@ -357,7 +425,7 @@ begin
   end
   else
   begin
-    SourceBmp := TBitMap.Create;
+    SourceBmp := TBitmap.Create;
     SourceBmp.Assign(OriginPicture.Graphic);
   end;
 
@@ -392,7 +460,7 @@ begin
   end
   else
   begin
-    DestBmp := TBitMap.Create;
+    DestBmp := TBitmap.Create;
     DestBmp.SetSize(MaxP.X - MinP.X + 1, MaxP.Y - MinP.Y + 1);
     DestBmp.PixelFormat := pf24bit;
   end;
@@ -444,14 +512,35 @@ begin
   end;
 end;
 
+procedure TObjectImage.SetAction(P: PActionLI; Act: TActionInfo);
+begin
+  P^.Info := Act;
+  if Assigned(UpdateOneAction) then
+    UpdateOneAction(Act);
+end;
+
 procedure TObjectImage.SetCurrCoordinates(const Value: TPoint);
 begin
   FCurrCoordinates := Value;
 end;
 
+procedure TObjectImage.SetUpdateActionList(const Value: TOnActionListChanged);
+begin
+  FUpdateActionList := Value;
+end;
+
+procedure TObjectImage.SetUpdateAfterDelete(const Value: TOnActionDelete);
+begin
+  FUpdateActionAfterDelete := Value;
+end;
+
+procedure TObjectImage.SetUpdateOneAction(const Value: TOnActionChanged);
+begin
+  FUpdateOneAction := Value;
+end;
+
 procedure TObjectImage.TimerAction(Sender: TObject);
 var
-  Buff: TBitMap;
   Tmp: PObjectLI;
   TimeInc, TimeLeft, XLeft, YLeft: Integer;
 begin
@@ -465,9 +554,7 @@ begin
   end;
   if (CurrAction <> nil) and (CurrTime >= CurrAction^.Info.TimeStart * 1000) then
   begin
-    Buff := TBitMap.Create;
-    Buff.SetSize((Parent as TMainForm).ClientWidth, (Parent as TMainForm).ClientHeight);
-    Buff.Canvas.StretchDraw(Rect(0, 0, (Parent as TMainForm).ClientWidth, (Parent as TMainForm).ClientHeight),
+    FActionBuff.Canvas.StretchDraw(Rect(0, 0, (Parent as TMainForm).ClientWidth, (Parent as TMainForm).ClientHeight),
       BackMenuForm.BkPict.Graphic);
     Tmp := (Parent as TMainForm).ObjectList;
     if CurrAction^.Info.ActType = actLineMove then
@@ -478,7 +565,7 @@ begin
       if (Abs(XLeft) <> 0) or (Abs(YLeft) <> 0) then
       begin
         TimeInc := Round(TimeLeft / Abs(XLeft));
-        while TimeInc <= 15 do
+        while TimeInc < 20 do
           TimeInc := TimeInc + Round(TimeLeft / Abs(XLeft));
         Inc(FCurrCoordinates.X, Round(XLeft / TimeLeft * TimeInc));
         Inc(FCurrCoordinates.Y, Round(YLeft / TimeLeft * TimeInc));
@@ -488,11 +575,11 @@ begin
       while Tmp <> nil do
       begin
         with Tmp^.ObjectImage do
-          Buff.Canvas.Draw(CurrCoordinates.X - Picture.Width div 2, CurrCoordinates.Y - Picture.Height div 2,
+          FActionBuff.Canvas.Draw(CurrCoordinates.X - Picture.Width div 2, CurrCoordinates.Y - Picture.Height div 2,
             Picture.Graphic);
         Tmp := Tmp^.Next;
       end;
-      (Parent as TMainForm).Canvas.Draw(0, 0, Buff);
+      (Parent as TMainForm).Canvas.Draw(0, 0, FActionBuff);
     end
     else if CurrAction^.Info.ActType = actCircleMove then
     begin

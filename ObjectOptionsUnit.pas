@@ -5,7 +5,7 @@ interface
 uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
   Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, Vcl.ExtCtrls, Vcl.ComCtrls, Math, Vcl.Imaging.pngimage,
-  ActionEditUnit, ObjectUnit;
+  ActionEditUnit, ObjectUnit, System.Actions, Vcl.ActnList;
 
 type
   TObjectOptionsForm = class(TForm)
@@ -28,6 +28,10 @@ type
     edtLeft: TEdit;
     btnDeleteAction: TButton;
     btnDeleteObject: TButton;
+    actList: TActionList;
+    actDeleteAction: TAction;
+    btnEditAction: TButton;
+    actEditAction: TAction;
     procedure FormCreate(Sender: TObject);
     procedure btnOkClick(Sender: TObject);
     procedure btnCancelClick(Sender: TObject);
@@ -37,6 +41,9 @@ type
     procedure FormShow(Sender: TObject);
     procedure btnDeleteObjectClick(Sender: TObject);
     procedure btnAddActionClick(Sender: TObject);
+    procedure actListUpdate(Action: TBasicAction; var Handled: Boolean);
+    procedure actDeleteActionExecute(Sender: TObject);
+    procedure actEditActionExecute(Sender: TObject);
   private
     FPicture: TPicture;
     FObjectOwner: TObjectImage;
@@ -44,7 +51,9 @@ type
     FIsDeleting: Boolean;
     FHeightRatio, FWidthRatio: Integer;
   public
-    procedure AddListViewItem(ActType: TActionType; TimeStart, TimeEnd: Integer);
+    procedure UpdateActionList(Header: PACtionLI);
+    procedure UpdateAfterDelete;
+    procedure UpdateSelectedAction(Act: TActionInfo);
     { properties }
     property ObjectOwner: TObjectImage read FObjectOwner write FObjectOwner;
     property Pict: TPicture read FPicture write FPicture;
@@ -61,56 +70,36 @@ implementation
 
 {$R *.dfm}
 
-procedure FillActionEditForm(StartT, EndT: Integer; StartPoint, EndPoint: TPoint; DefaultAction: TActionType = TActionType(0));
+procedure TObjectOptionsForm.actEditActionExecute(Sender: TObject);
 var
-  Act: TActionType;
+  Tmp: PACtionLI;
+  Act: TActionInfo;
+  Res: TModalResult;
 begin
-  with ActionEditForm do
-  begin
-    cbActionType.Clear;
-    for Act := Low(TActionType) to High(TActionType) do
-    begin
-      cbActionType.Items.Add(ActionNames[Act]);
-    end;
-    cbActionType.ItemIndex := Ord(DefaultAction);
-    edtTimeStart.Text := IntToStr(StartT);
-    edtTimeEnd.Text := IntToStr(EndT);
-    edtStartPointX.Text := IntToStr(StartPoint.X);
-    edtStartPointY.Text := IntToStr(StartPoint.Y);
-    edtEndPointX.Text := IntToStr(EndPoint.X);
-    edtEndPointY.Text := IntToStr(EndPoint.Y);
-  end;
+  Tmp := FObjectOwner.ActionList[lvActions.ItemIndex];
+  Act := Tmp^.Info;
+
+  Res := ActionEditForm.ShowForEdit(Act, FObjectOwner);
+
+  if Res = mrOk then
+    FObjectOwner.SetAction(Tmp, Act);
 end;
 
-procedure TObjectOptionsForm.AddListViewItem(ActType: TActionType; TimeStart, TimeEnd: Integer);
+procedure TObjectOptionsForm.actListUpdate(Action: TBasicAction; var Handled: Boolean);
 begin
-  with lvActions.Items.Add do
-  begin
-    Caption := ActionNames[ActType];
-    SubItems.Add(IntToStr(TimeStart));
-    SubItems.Add(IntToStr(TimeEnd));
-  end;
+  actDeleteAction.Enabled := lvActions.ItemIndex >= 0;
+  actEditAction.Enabled := lvActions.ItemIndex >= 0;
 end;
 
 procedure TObjectOptionsForm.btnAddActionClick(Sender: TObject);
 var
   Act: TActionInfo;
+  Res: TModalResult;
 begin
-  FillActionEditForm(0, 0, Point(0, 0), Point(0, 0));
-  ActionEditForm.ShowModal;
-  if ActionEditForm.IsConfirm then
-  begin
-    with ActionEditForm, Act do
-    begin
-      ActType := TActionType(cbActionType.ItemIndex);
-      TimeStart := StrToInt(edtTimeStart.Text);
-      TimeEnd := StrToInt(edtTimeEnd.Text);
-      StartPoint := Point(StrToInt(edtStartPointX.Text), StrToInt(edtStartPointY.Text));
-      EndPoint := Point(StrToInt(edtEndPointX.Text), StrToInt(edtEndPointY.Text));
-      AddListViewItem(ActType, TimeStart, TimeEnd);
-    end;
-    ObjectOwner.AddAction(Act);
-  end;
+  Res := ActionEditForm.ShowForAdd(Act, FObjectOwner);
+
+  if Res = mrOk then
+    FObjectOwner.AddAction(Act);
 end;
 
 procedure TObjectOptionsForm.btnCancelClick(Sender: TObject);
@@ -142,6 +131,11 @@ begin
     ShowMessage('Fill in required filds');
 end;
 
+procedure TObjectOptionsForm.actDeleteActionExecute(Sender: TObject);
+begin
+  FObjectOwner.DeleteAction(lvActions.ItemIndex);
+end;
+
 procedure TObjectOptionsForm.edtHeightChange(Sender: TObject);
 begin
   if edtHeight.Modified and chbIsProportional.Checked and (edtHeight.Text <> '') then
@@ -165,6 +159,7 @@ end;
 
 procedure TObjectOptionsForm.FormShow(Sender: TObject);
 begin
+  UpdateActionList(FObjectOwner.ActionList[0]);
   FIsConfirm := False;
   FIsDeleting := False;
 end;
@@ -177,6 +172,33 @@ begin
   else
     pbPicture.Canvas.StretchDraw(Rect(0, 100 - Round(200 / WidthRatio * HeightRatio) div 2, 200,
       100 + Round(200 / WidthRatio * HeightRatio) div 2), Pict.Graphic);
+end;
+
+procedure TObjectOptionsForm.UpdateActionList(Header: PACtionLI);
+begin
+  lvActions.Items.Clear;
+  while Header <> nil do
+  begin
+    with lvActions.Items.Add do
+    begin
+      Caption := ActionNames[Header^.Info.ActType];
+      SubItems.Add(IntToStr(Header^.Info.TimeStart));
+      SubItems.Add(IntToStr(Header^.Info.TimeEnd));
+    end;
+    Header := Header^.Next;
+  end;
+end;
+
+procedure TObjectOptionsForm.UpdateAfterDelete;
+begin
+  lvActions.DeleteSelected;
+end;
+
+procedure TObjectOptionsForm.UpdateSelectedAction(Act: TActionInfo);
+begin
+  lvActions.Items.Item[lvActions.ItemIndex].Caption := ActionNames[Act.ActType];
+  lvActions.Items.Item[lvActions.ItemIndex].SubItems[0] := IntToStr(Act.TimeStart);
+  lvActions.Items.Item[lvActions.ItemIndex].SubItems[1] := IntToStr(Act.TimeEnd);
 end;
 
 end.

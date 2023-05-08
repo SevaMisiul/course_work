@@ -267,7 +267,7 @@ object ObjectOptionsForm: TObjectOptionsForm
     Top = 280
     Width = 100
     Height = 33
-    Caption = 'Delete action'
+    Action = actDeleteAction
     Font.Charset = DEFAULT_CHARSET
     Font.Color = clWindowText
     Font.Height = -16
@@ -290,5 +290,33 @@ object ObjectOptionsForm: TObjectOptionsForm
     ParentFont = False
     TabOrder = 11
     OnClick = btnDeleteObjectClick
+  end
+  object btnEditAction: TButton
+    Left = 285
+    Top = 330
+    Width = 100
+    Height = 33
+    Action = actEditAction
+    Font.Charset = DEFAULT_CHARSET
+    Font.Color = clWindowText
+    Font.Height = -16
+    Font.Name = 'Tahoma'
+    Font.Style = []
+    ParentFont = False
+    TabOrder = 12
+  end
+  object actList: TActionList
+    OnUpdate = actListUpdate
+    Left = 32
+    Top = 312
+    object actDeleteAction: TAction
+      Caption = 'Delete action'
+      ShortCut = 8238
+      OnExecute = actDeleteActionExecute
+    end
+    object actEditAction: TAction
+      Caption = 'Edit action'
+      OnExecute = actEditActionExecute
+    end
   end
 end

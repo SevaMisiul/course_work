@@ -32,35 +32,24 @@ type
     actDeleteAction: TAction;
     btnEditAction: TButton;
     actEditAction: TAction;
-    procedure FormCreate(Sender: TObject);
-    procedure btnOkClick(Sender: TObject);
-    procedure btnCancelClick(Sender: TObject);
+    actAddAction: TAction;
     procedure pbPicturePaint(Sender: TObject);
     procedure edtHeightChange(Sender: TObject);
     procedure edtWidthChange(Sender: TObject);
-    procedure FormShow(Sender: TObject);
-    procedure btnDeleteObjectClick(Sender: TObject);
-    procedure btnAddActionClick(Sender: TObject);
     procedure actListUpdate(Action: TBasicAction; var Handled: Boolean);
     procedure actDeleteActionExecute(Sender: TObject);
     procedure actEditActionExecute(Sender: TObject);
+    procedure actAddActionExecute(Sender: TObject);
+    procedure FormCloseQuery(Sender: TObject; var CanClose: Boolean);
   private
-    FPicture: TPicture;
     FObjectOwner: TObjectImage;
-    FIsConfirm: Boolean;
-    FIsDeleting: Boolean;
-    FHeightRatio, FWidthRatio: Integer;
   public
+    function ShowForEdit(Obj: TObjectImage; var H, W, L, T, Angle: Integer; var IsProportional: Boolean): TModalResult;
+
     procedure UpdateActionList(Header: PACtionLI);
     procedure UpdateAfterDelete;
     procedure UpdateSelectedAction(Act: TActionInfo);
     { properties }
-    property ObjectOwner: TObjectImage read FObjectOwner write FObjectOwner;
-    property Pict: TPicture read FPicture write FPicture;
-    property HeightRatio: Integer read FHeightRatio write FHeightRatio;
-    property WidthRatio: Integer read FWidthRatio write FWidthRatio;
-    property IsConfirm: Boolean read FIsConfirm;
-    property ISDeleting: Boolean read FIsDeleting;
   end;
 
 var
@@ -69,6 +58,22 @@ var
 implementation
 
 {$R *.dfm}
+
+procedure TObjectOptionsForm.actAddActionExecute(Sender: TObject);
+var
+  Act: TActionInfo;
+  Res: TModalResult;
+begin
+  Res := ActionEditForm.ShowForAdd(Act, FObjectOwner);
+
+  if Res = mrOk then
+    FObjectOwner.AddAction(Act);
+end;
+
+procedure TObjectOptionsForm.actDeleteActionExecute(Sender: TObject);
+begin
+  FObjectOwner.DeleteAction(lvActions.ItemIndex);
+end;
 
 procedure TObjectOptionsForm.actEditActionExecute(Sender: TObject);
 var
@@ -91,55 +96,11 @@ begin
   actEditAction.Enabled := lvActions.ItemIndex >= 0;
 end;
 
-procedure TObjectOptionsForm.btnAddActionClick(Sender: TObject);
-var
-  Act: TActionInfo;
-  Res: TModalResult;
-begin
-  Res := ActionEditForm.ShowForAdd(Act, FObjectOwner);
-
-  if Res = mrOk then
-    FObjectOwner.AddAction(Act);
-end;
-
-procedure TObjectOptionsForm.btnCancelClick(Sender: TObject);
-begin
-  Close;
-end;
-
-procedure TObjectOptionsForm.btnDeleteObjectClick(Sender: TObject);
-var
-  ClickedBtn: Integer;
-begin
-  ClickedBtn := MessageDlg('Are you sure you want to delete the object', mtWarning, [mbYes, mbNo], 0);
-  if ClickedBtn = 6 then
-  begin
-    FIsDeleting := True;
-    Close;
-  end;
-end;
-
-procedure TObjectOptionsForm.btnOkClick(Sender: TObject);
-begin
-  if (edtHeight.Text <> '') and (edtHeight.Text <> '') and (edtAngle.Text <> '') and (edtTop.Text <> '') and
-    (edtLeft.Text <> '') then
-  begin
-    FIsConfirm := True;
-    Close;
-  end
-  else
-    ShowMessage('Fill in required filds');
-end;
-
-procedure TObjectOptionsForm.actDeleteActionExecute(Sender: TObject);
-begin
-  FObjectOwner.DeleteAction(lvActions.ItemIndex);
-end;
-
 procedure TObjectOptionsForm.edtHeightChange(Sender: TObject);
 begin
   if edtHeight.Modified and chbIsProportional.Checked and (edtHeight.Text <> '') then
-    edtWidth.Text := IntToStr(Round(StrToInt(edtHeight.Text) / HeightRatio * WidthRatio))
+    edtWidth.Text := IntToStr(Round(StrToInt(edtHeight.Text) / FObjectOwner.AspectRatio.Height *
+      FObjectOwner.AspectRatio.Width))
   else if edtHeight.Modified and chbIsProportional.Checked and (edtHeight.Text = '') then
     edtWidth.Text := '';
 end;
@@ -147,31 +108,63 @@ end;
 procedure TObjectOptionsForm.edtWidthChange(Sender: TObject);
 begin
   if edtWidth.Modified and chbIsProportional.Checked and (edtWidth.Text <> '') then
-    edtHeight.Text := IntToStr(Round(StrToInt(edtWidth.Text) / WidthRatio * HeightRatio))
+    edtHeight.Text := IntToStr(Round(StrToInt(edtWidth.Text) / FObjectOwner.AspectRatio.Width *
+      FObjectOwner.AspectRatio.Height))
   else if edtWidth.Modified and chbIsProportional.Checked and (edtWidth.Text = '') then
     edtHeight.Text := '';
 end;
 
-procedure TObjectOptionsForm.FormCreate(Sender: TObject);
+procedure TObjectOptionsForm.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
 begin
-  Pict := TPicture.Create;
-end;
-
-procedure TObjectOptionsForm.FormShow(Sender: TObject);
-begin
-  UpdateActionList(FObjectOwner.ActionList[0]);
-  FIsConfirm := False;
-  FIsDeleting := False;
+  if (ModalResult = mrOk) and ((edtHeight.Text = '') or (edtWidth.Text = '') or (edtAngle.Text = '') or
+    (edtTop.Text = '') or (edtLeft.Text = '')) then
+  begin
+    ShowMessage('Fill in required filds');
+    CanClose := False;
+  end;
+  if ModalResult = mrAbort then
+  begin
+    CanClose := (MessageDlg('Are you sure you want to delete the object', mtWarning, [mbYes, mbNo], 0) = 6);
+  end;
 end;
 
 procedure TObjectOptionsForm.pbPicturePaint(Sender: TObject);
 begin
-  if HeightRatio >= WidthRatio then
-    pbPicture.Canvas.StretchDraw(Rect(100 - Round(200 / HeightRatio * WidthRatio) div 2, 0,
-      100 + Round(200 / HeightRatio * WidthRatio) div 2, 200), Pict.Graphic)
+  if FObjectOwner.AspectRatio.Height >= FObjectOwner.AspectRatio.Width then
+    pbPicture.Canvas.StretchDraw
+      (Rect(100 - Round(200 / FObjectOwner.AspectRatio.Height * FObjectOwner.AspectRatio.Width) div 2, 0,
+      100 + Round(200 / FObjectOwner.AspectRatio.Height * FObjectOwner.AspectRatio.Width) div 2, 200),
+      FObjectOwner.OriginPicture.Graphic)
   else
-    pbPicture.Canvas.StretchDraw(Rect(0, 100 - Round(200 / WidthRatio * HeightRatio) div 2, 200,
-      100 + Round(200 / WidthRatio * HeightRatio) div 2), Pict.Graphic);
+    pbPicture.Canvas.StretchDraw
+      (Rect(0, 100 - Round(200 / FObjectOwner.AspectRatio.Width * FObjectOwner.AspectRatio.Height) div 2, 200,
+      100 + Round(200 / FObjectOwner.AspectRatio.Width * FObjectOwner.AspectRatio.Height) div 2),
+      FObjectOwner.OriginPicture.Graphic);
+end;
+
+function TObjectOptionsForm.ShowForEdit(Obj: TObjectImage; var H, W, L, T, Angle: Integer; var IsProportional: Boolean)
+  : TModalResult;
+begin
+  FObjectOwner := Obj;
+  UpdateActionList(Obj.ActionList[0]);
+  edtHeight.Text := IntToStr(H);
+  edtWidth.Text := IntToStr(W);
+  edtAngle.Text := IntToStr(Angle);
+  chbIsProportional.Checked := IsProportional;
+  edtTop.Text := IntToStr(T + Obj.Height div 2);
+  edtLeft.Text := IntToStr(L + Obj.Width div 2);
+
+  result := ShowModal;
+
+  if result = mrOk then
+  begin
+    H := StrToInt(edtHeight.Text);
+    W := StrToInt(edtWidth.Text);
+    T := StrToInt(edtTop.Text);
+    L := StrToInt(edtLeft.Text);
+    Angle := StrToInt(edtAngle.Text);
+    IsProportional := chbIsProportional.Checked;
+  end;
 end;
 
 procedure TObjectOptionsForm.UpdateActionList(Header: PACtionLI);

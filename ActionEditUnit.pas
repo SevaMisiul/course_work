@@ -4,7 +4,7 @@ interface
 
 uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
-  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, ObjectUnit;
+  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, ObjectUnit, Vcl.ExtCtrls;
 
 type
   TActionEditForm = class(TForm)
@@ -24,12 +24,17 @@ type
     edtEndPointX: TEdit;
     lbEndPointY: TLabel;
     edtEndPointY: TEdit;
+    lbRadius: TLabel;
+    edtRadius: TEdit;
+    rgCenterPos: TRadioGroup;
     procedure FormCreate(Sender: TObject);
     procedure FormCloseQuery(Sender: TObject; var CanClose: Boolean);
+    procedure cbActionTypeChange(Sender: TObject);
   private
     FObj: TObjectImage;
     FIsEditing: Boolean;
     FCurrAct: TACtionInfo;
+    procedure GetActionInfo(var Act: TACtionInfo);
   public
     function ShowForAdd(var Act: TACtionInfo; Obj: TObjectImage): TModalResult;
     function ShowForEdit(var Act: TACtionInfo; Obj: TObjectImage): TModalResult;
@@ -45,6 +50,24 @@ implementation
 uses
   ObjectOptionsUnit;
 
+procedure TActionEditForm.cbActionTypeChange(Sender: TObject);
+begin
+  if TActionType(cbActionType.ItemIndex) = actLineMove then
+  begin
+    lbRadius.Visible := False;
+    edtRadius.Visible := False;
+    rgCenterPos.Visible := False;
+  end
+  else if TActionType(cbActionType.ItemIndex) = actCircleMove then
+  begin
+    lbRadius.Visible := True;
+    edtRadius.Visible := True;
+    rgCenterPos.Visible := True;
+    rgCenterPos.ItemIndex := 0;
+    edtRadius.Text := '';
+  end;
+end;
+
 procedure TActionEditForm.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
 var
   Tmp: PActionLI;
@@ -53,7 +76,9 @@ var
 begin
   if (ModalResult = mrOk) and ((edtStartPointX.Text = '') or (edtStartPointY.Text = '') or (edtEndPointX.Text = '') or
     (edtEndPointY.Text = '') or (edtTimeStart.Text = '') or (edtTimeEnd.Text = '') or
-    (StrToInt(edtTimeStart.Text) >= StrToInt(edtTimeEnd.Text))) then
+    (StrToInt(edtTimeStart.Text) >= StrToInt(edtTimeEnd.Text)) or ((TActionType(cbActionType.ItemIndex) = actCircleMove)
+    and ((edtRadius.Text = '') or (StrToInt(edtRadius.Text) < sqrt(sqr(StrToInt(edtStartPointX.Text) -
+    StrToInt(edtEndPointX.Text)) + sqr(StrToInt(edtStartPointY.Text) - StrToInt(edtEndPointY.Text))) / 2)))) then
   begin
     ShowMessage('Fill in the fields correctly');
     CanClose := False;
@@ -89,6 +114,22 @@ begin
     cbActionType.Items.Add(ActionNames[I]);
 end;
 
+procedure TActionEditForm.GetActionInfo(var Act: TACtionInfo);
+begin
+  Act.ActType := TActionType(cbActionType.ItemIndex);
+  Act.TimeStart := StrToInt(edtTimeStart.Text);
+  Act.TimeEnd := StrToInt(edtTimeEnd.Text);
+  Act.StartPoint.X := StrToInt(edtStartPointX.Text);
+  Act.StartPoint.Y := StrToInt(edtStartPointY.Text);
+  Act.EndPoint.X := StrToInt(edtEndPointX.Text);
+  Act.EndPoint.Y := StrToInt(edtEndPointY.Text);
+  if Act.ActType = actCircleMove then
+  begin
+    Act.Radius := StrToInt(edtRadius.Text);
+    ACt.CenterPos := TCenterPos(rgCenterPos.ItemIndex);
+  end;
+end;
+
 function TActionEditForm.ShowForAdd(var Act: TACtionInfo; Obj: TObjectImage): TModalResult;
 var
   Tmp: TACtionInfo;
@@ -106,10 +147,11 @@ begin
   else
   begin
     edtTimeStart.Text := '';
-    edtStartPointX.Text := '';
-    edtStartPointY.Text := '';
+    edtStartPointX.Text := IntToStr(FObj.Left + FObj.Width div 2);
+    edtStartPointY.Text := IntToStr(FObj.Top + FObj.Height div 2);
   end;
   cbActionType.ItemIndex := 0;
+  cbActionTypeChange(Self);
   edtTimeEnd.Text := '';
   edtEndPointX.Text := '';
   edtEndPointY.Text := '';
@@ -118,13 +160,7 @@ begin
 
   if result = mrOk then
   begin
-    Act.ActType := TActionType(cbActionType.ItemIndex);
-    Act.TimeStart := StrToInt(edtTimeStart.Text);
-    Act.TimeEnd := StrToInt(edtTimeEnd.Text);
-    Act.StartPoint.X := StrToInt(edtStartPointX.Text);
-    Act.StartPoint.Y := StrToInt(edtStartPointY.Text);
-    Act.EndPoint.X := StrToInt(edtEndPointX.Text);
-    Act.EndPoint.Y := StrToInt(edtEndPointY.Text);
+    GetActionInfo(Act);
   end;
 end;
 
@@ -135,6 +171,12 @@ begin
   FCurrAct := Act;
 
   cbActionType.ItemIndex := Ord(Act.ActType);
+  cbActionTypeChange(Self);
+  if Act.ActType = actCircleMove then
+  begin
+    edtRadius.Text := IntToStr(Act.Radius);
+    rgCenterPos.ItemIndex := Ord(Act.CenterPos);
+  end;
   edtTimeStart.Text := IntToStr(Act.TimeStart);
   edtTimeEnd.Text := IntToStr(Act.TimeEnd);
   edtStartPointX.Text := IntToStr(Act.StartPoint.X);
@@ -146,13 +188,7 @@ begin
 
   if result = mrOk then
   begin
-    Act.ActType := TActionType(cbActionType.ItemIndex);
-    Act.TimeStart := StrToInt(edtTimeStart.Text);
-    Act.TimeEnd := StrToInt(edtTimeEnd.Text);
-    Act.StartPoint.X := StrToInt(edtStartPointX.Text);
-    Act.StartPoint.Y := StrToInt(edtStartPointY.Text);
-    Act.EndPoint.X := StrToInt(edtEndPointX.Text);
-    Act.EndPoint.Y := StrToInt(edtEndPointY.Text);
+    GetActionInfo(Act);
   end;
 end;
 

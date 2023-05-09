@@ -13,8 +13,7 @@ object ObjectOptionsForm: TObjectOptionsForm
   Font.Style = []
   OldCreateOrder = False
   Position = poScreenCenter
-  OnCreate = FormCreate
-  OnShow = FormShow
+  OnCloseQuery = FormCloseQuery
   PixelsPerInch = 96
   TextHeight = 13
   object pbPicture: TPaintBox
@@ -179,7 +178,7 @@ object ObjectOptionsForm: TObjectOptionsForm
     Top = 280
     Width = 100
     Height = 33
-    Caption = 'Add action'
+    Action = actAddAction
     Font.Charset = DEFAULT_CHARSET
     Font.Color = clWindowText
     Font.Height = -16
@@ -187,7 +186,6 @@ object ObjectOptionsForm: TObjectOptionsForm
     Font.Style = []
     ParentFont = False
     TabOrder = 7
-    OnClick = btnAddActionClick
   end
   object btnOk: TButton
     Left = 430
@@ -200,9 +198,9 @@ object ObjectOptionsForm: TObjectOptionsForm
     Font.Height = -16
     Font.Name = 'Tahoma'
     Font.Style = []
+    ModalResult = 1
     ParentFont = False
     TabOrder = 9
-    OnClick = btnOkClick
   end
   object btnCancel: TButton
     Left = 285
@@ -215,9 +213,9 @@ object ObjectOptionsForm: TObjectOptionsForm
     Font.Height = -16
     Font.Name = 'Tahoma'
     Font.Style = []
+    ModalResult = 2
     ParentFont = False
     TabOrder = 8
-    OnClick = btnCancelClick
   end
   object edtWidth: TEdit
     Left = 410
@@ -287,9 +285,9 @@ object ObjectOptionsForm: TObjectOptionsForm
     Font.Height = -16
     Font.Name = 'Tahoma'
     Font.Style = []
+    ModalResult = 3
     ParentFont = False
     TabOrder = 11
-    OnClick = btnDeleteObjectClick
   end
   object btnEditAction: TButton
     Left = 285
@@ -317,6 +315,10 @@ object ObjectOptionsForm: TObjectOptionsForm
     object actEditAction: TAction
       Caption = 'Edit action'
       OnExecute = actEditActionExecute
+    end
+    object actAddAction: TAction
+      Caption = 'Add action'
+      OnExecute = actAddActionExecute
     end
   end
 end

@@ -60,7 +60,6 @@ type
     FAddObjectIcon: TImage;
     FObjectPanelTop: Integer;
     FObjectFileNames: System.TArray<string>;
-    LastClick: TPoint;
     procedure SwitchPanel;
   public
     destructor Destroy; override;
@@ -91,9 +90,8 @@ begin
     begin
       if ActionList[0] <> nil then
       begin
-        CurrTime := ActionList[0]^.Info.TimeStart * 1000;
+        CurrTime := -15;
         CurrAction := ActionList[0];
-        CurrCoordinates := ActionList[0]^.Info.StartPoint;
       end;
       Timer.Enabled := True;
       Timer.Interval := 15;
@@ -168,10 +166,6 @@ procedure TMainForm.FormClick(Sender: TObject);
 var
   MousePos: TPoint;
 begin
-  if FWaitingCoordinatesClick then
-  begin
-    GetCursorPos(LastClick);
-  end;
   if FWaitingFormClick then
   begin
     GetCursorPos(MousePos);

@@ -11,6 +11,8 @@ uses
 type
   TActionType = (actLineMove = 0, actCircleMove = 1);
 
+  TCenterPos = (posUp = 0, posDown = 1);
+
   TAspectFrac = record
     Width, Height: Integer;
   end;
@@ -18,7 +20,9 @@ type
   TACtionInfo = record
     ActType: TActionType;
     TimeStart, TimeEnd: Integer;
-    StartPoint, EndPoint: TPoint;
+    StartPoint, EndPoint, CircleCenter: TPoint;
+    CenterPos: TCenterPos;
+    Radius: Integer;
   end;
 
   PActionLI = ^TActionLI;
@@ -35,7 +39,7 @@ type
 
   TOnActionDelete = procedure of object;
 
-  TOnActionChanged = procedure(Act: TActionInfo) of object;
+  TOnActionChanged = procedure(Act: TACtionInfo) of object;
 
   TObjectImage = class(TImage)
     Timer: TTimer;
@@ -64,16 +68,17 @@ type
   public
     constructor Create(AOwner: TComponent; X: Integer; Y: Integer; Pict: TPicture; IsPngExtension: Boolean);
     destructor Destroy;
-    procedure Rotate(Angle: Real);
+    procedure Rotate(Angle: Integer);
     procedure Resize(NewHeight, NewWidth: Integer; IsProportional: Boolean);
     procedure ViewImage(Pict: TGraphic);
     procedure AddAction(Act: TACtionInfo);
-    procedure SetAction(P: PActionLI; Act: TActionInfo);
+    procedure SetAction(P: PActionLI; Act: TACtionInfo);
     procedure DeleteAction(Index: Integer);
     { properties }
     property UpdateOneAction: TOnActionChanged read FUpdateOneAction write SetUpdateOneAction;
     property UpdateActionAfterDelete: TOnActionDelete read FUpdateActionAfterDelete write SetUpdateAfterDelete;
     property UpdateActionList: TOnActionListChanged read FUpdateActionList write SetUpdateActionList;
+
     property CurrCoordinates: TPoint read FCurrCoordinates write SetCurrCoordinates;
     property CurrAction: PActionLI read FCurrAction write FCurrAction;
     property CurrTime: Integer read FCurrTime write FCurrTime;
@@ -110,47 +115,62 @@ begin
   Frac.Height := Frac.Height div Tmp;
 end;
 
-procedure FillActionOptionsForm(const Obj: TObjectImage);
+procedure CalcCircleCenter(var Act: TACtionInfo);
 var
-  Tmp: PActionLI;
+  ChordCenter: TPoint;
+  Chord, X11, X12, Y11, Y12, Normal, A, B, C, D, Y2, Y3, X2, X3, R: Extended;
 begin
-  with ObjectOptionsForm do
+  X2 := Act.StartPoint.X;
+  Y2 := Act.StartPoint.Y;
+  X3 := Act.EndPoint.X;
+  Y3 := Act.EndPoint.Y;
+  R := Act.Radius;
+
+  if (X2 = X3) and (Y2 <> Y3) then
   begin
-    WidthRatio := Obj.AspectRatio.Width;
-    HeightRatio := Obj.AspectRatio.Height;
-    chbIsProportional.Checked := Obj.Proportional;
-    edtHeight.Text := IntToStr(Obj.OriginPicture.Height);
-    edtWidth.Text := IntToStr(Obj.OriginPicture.Width);
-    edtTop.Text := IntToStr(Obj.Top + Obj.Height div 2);
-    edtLeft.Text := IntToStr(Obj.Left + Obj.Width div 2);
-    edtAngle.Text := IntToStr(Obj.Angle);
-    Pict.Assign(Obj.OriginPicture);
-    ObjectOwner := Obj;
-
-    Tmp := Obj.FActionList^.Next;
-    lvActions.Clear;
-    while Tmp <> nil do
-    begin
-
-      Tmp := Tmp^.Next;
-    end;
-  end;
-end;
-
-procedure SetChanges(var Obj: TObjectImage);
-begin
-  with ObjectOptionsForm do
+    Act.CircleCenter.Y := Round((Y2 + Y3) / 2);
+    if Act.CenterPos = posUp then
+      Act.CircleCenter.X := Round(X2 + sqrt(sqr(Act.Radius) - sqr((Y3 - Y2) / 2)))
+    else if Act.CenterPos = posDown then
+      Act.CircleCenter.X := Round(X2 - sqrt(sqr(Act.Radius) - sqr((Y3 - Y2) / 2)));
+  end
+  else if X2 <> X3 then
   begin
-    if (Obj.OriginPicture.Height <> StrToInt(edtHeight.Text)) or (Obj.OriginPicture.Width <> StrToInt(edtWidth.Text))
-    then
-      Obj.Resize(StrToInt(edtHeight.Text), StrToInt(edtWidth.Text), chbIsProportional.Checked);
-    if Obj.Angle <> StrToInt(edtAngle.Text) then
-    begin
-      Obj.FAngle := StrToInt(edtAngle.Text);
-      Obj.Rotate(Obj.Angle);
-    end;
-    Obj.Top := StrToInt(edtTop.Text) - Obj.Height div 2;
-    Obj.Left := StrToInt(edtLeft.Text) - Obj.Width div 2;
+    A := 4 * sqr(Y2) - 8 * Y2 * Y3 + 4 * sqr(Y3) + 4 * sqr(X2 - X3);
+    B := 4 * (X2 - X3) * X3 * Y2 - 4 * (X2 - X3) * X3 * Y3 - 4 * Y2 * Y2 * Y2 + 4 * sqr(Y2) * Y3 + 4 * Y2 * sqr(Y3) - 4
+      * (X2 - X3) * X2 * Y2 - 4 * Y3 * Y3 * Y3 + 4 * (X2 - X3) * X2 * Y3 - 8 * Y3 * sqr(X2 - X3);
+    C := sqr(X2) * sqr(X2 - X3) + sqr(sqr(Y2)) - 2 * sqr(Y2) * sqr(Y3) - 2 * (X2 - X3) * X3 * sqr(Y2) + 2 * (X2 - X3) *
+      X2 * sqr(Y2) + sqr(sqr(Y3)) + 2 * (X2 - X3) * X3 * sqr(Y3) - 2 * (X2 - X3) * X2 * sqr(Y3) - 2 * X2 * X3 *
+      (X2 - X3) + sqr(X3) * sqr(X2 - X3) + 4 * sqr(Y3) * sqr(X2 - X3) - sqr(R) * 4 * sqr(X2 - X3);
+    D := sqr(B) - 4 * A * C;
+
+    Y11 := (-B + sqrt(D)) / (2 * A);
+    Y12 := (-B - sqrt(D)) / (2 * A);
+
+    X11 := (X2 + X3) / 2 + (Y2 - Y3) * (Y2 + Y3 - 2 * Y11) / ((X2 - X3) * 2);
+    X12 := (X2 + X3) / 2 + (Y2 - Y3) * (Y2 + Y3 - 2 * Y12) / ((X2 - X3) * 2);
+    if Act.CenterPos = posUp then
+      if Y11 > Y12 then
+      begin
+        Act.CircleCenter.X := Round(X11);
+        Act.CircleCenter.Y := Round(Y11);
+      end
+      else
+      begin
+        Act.CircleCenter.X := Round(X12);
+        Act.CircleCenter.Y := Round(Y12);
+      end
+    else if Act.CenterPos = posDown then
+      if Y11 > Y12 then
+      begin
+        Act.CircleCenter.X := Round(X12);
+        Act.CircleCenter.Y := Round(Y12);
+      end
+      else
+      begin
+        Act.CircleCenter.X := Round(X11);
+        Act.CircleCenter.Y := Round(Y11);
+      end
   end;
 end;
 
@@ -159,6 +179,7 @@ var
   TmpNew, Tmp: PActionLI;
 begin
   new(TmpNew);
+  CalcCircleCenter(Act);
   TmpNew^.Info := Act;
   Tmp := FActionList;
   while (Tmp^.Next <> nil) and (Tmp^.Next^.Info.TimeStart < Act.TimeStart) do
@@ -288,17 +309,29 @@ begin
 end;
 
 procedure TObjectImage.ObjectImageDblClick(Sender: TObject);
+var
+  Res: TModalResult;
+  H, W, L, T, AngleP: Integer;
+  IsProportional: Boolean;
 begin
-  with ObjectOptionsForm do
+  H := OriginPicture.Height;
+  W := OriginPicture.Width;
+  L := Left;
+  T := Top;
+  AngleP := Self.Angle;
+  IsProportional := Self.Proportional;
+  Res := ObjectOptionsForm.ShowForEdit(Self, H, W, L, T, AngleP, IsProportional);
+
+  if Res = mrAbort then
+    Self.Destroy
+  else if Res = mrOk then
   begin
-    FillActionOptionsForm(Self);
-    ShowModal;
-    if ISDeleting then
-      Self.Destroy;
-    if IsConfirm then
-    begin
-      SetChanges(Self);
-    end;
+    if (H <> OriginPicture.Height) or (W <> OriginPicture.Width) then
+      Resize(H, W, IsProportional);
+    if (AngleP <> Self.Angle) then
+      Rotate(AngleP);
+    Left := L - Width div 2;
+    Top := T - Height div 2;
   end;
 end;
 
@@ -401,7 +434,7 @@ begin
   end;
 end;
 
-procedure TObjectImage.Rotate(Angle: Real);
+procedure TObjectImage.Rotate(Angle: Integer);
 var
   SinRad, CosRad, AngleRad: Real;
   RowSource, RowDest: PPixelArray;
@@ -413,6 +446,8 @@ var
   DestAlpha, SourceAlpha: PByteArray;
   IsAlpha: Boolean;
 begin
+  Self.FAngle := Angle;
+
   AngleRad := Angle * Pi / 180;
   SinRad := Sin(AngleRad);
   CosRad := Cos(AngleRad);
@@ -512,8 +547,9 @@ begin
   end;
 end;
 
-procedure TObjectImage.SetAction(P: PActionLI; Act: TActionInfo);
+procedure TObjectImage.SetAction(P: PActionLI; Act: TACtionInfo);
 begin
+  CalcCircleCenter(Act);
   P^.Info := Act;
   if Assigned(UpdateOneAction) then
     UpdateOneAction(Act);
@@ -542,16 +578,18 @@ end;
 procedure TObjectImage.TimerAction(Sender: TObject);
 var
   Tmp: PObjectLI;
-  TimeInc, TimeLeft, XLeft, YLeft: Integer;
+  TimeLeft, XLeft, YLeft: Integer;
+  TimeInc, PixelTime: Real;
 begin
+  Inc(FCurrTime, Timer.Interval);
   if CurrAction = nil then
     Timer.Enabled := False
+  else if CurrTime < CurrAction^.Info.TimeStart * 1000 then
+    Timer.Interval := CurrAction^.Info.TimeStart * 1000 - CurrTime
+  else if CurrTime = CurrAction^.Info.TimeStart * 1000 then
+    FCurrCoordinates := FCurrAction^.Info.StartPoint
   else if CurrTime >= CurrAction^.Info.TimeEnd * 1000 then
-  begin
     FCurrAction := CurrAction^.Next;
-    if FCurrAction <> nil then
-      FCurrCoordinates := FCurrAction^.Info.StartPoint;
-  end;
   if (CurrAction <> nil) and (CurrTime >= CurrAction^.Info.TimeStart * 1000) then
   begin
     FActionBuff.Canvas.StretchDraw(Rect(0, 0, (Parent as TMainForm).ClientWidth, (Parent as TMainForm).ClientHeight),
@@ -564,14 +602,14 @@ begin
       YLeft := (CurrAction^.Info.EndPoint.Y - CurrCoordinates.Y);
       if (Abs(XLeft) <> 0) or (Abs(YLeft) <> 0) then
       begin
-        TimeInc := Round(TimeLeft / Abs(XLeft));
-        while TimeInc < 20 do
-          TimeInc := TimeInc + Round(TimeLeft / Abs(XLeft));
-        Inc(FCurrCoordinates.X, Round(XLeft / TimeLeft * TimeInc));
-        Inc(FCurrCoordinates.Y, Round(YLeft / TimeLeft * TimeInc));
-        Timer.Interval := TimeInc;
+        PixelTime := TimeLeft / Max(Abs(XLeft), Abs(YLeft));
+        TimeInc := 0;
+        while (TimeInc <> TimeLeft) and (TimeInc < 20) do
+          TimeInc := Min(TimeLeft, TimeInc + PixelTime);
+        Inc(FCurrCoordinates.X, Round(XLeft / TimeLeft * Round(TimeInc)));
+        Inc(FCurrCoordinates.Y, Round(YLeft / TimeLeft * Round(TimeInc)));
+        Timer.Interval := Round(TimeInc);
       end;
-      Inc(FCurrTime, TimeInc);
       while Tmp <> nil do
       begin
         with Tmp^.ObjectImage do

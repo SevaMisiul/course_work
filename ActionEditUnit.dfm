@@ -4,7 +4,7 @@ object ActionEditForm: TActionEditForm
   BorderStyle = bsDialog
   Caption = 'ActionEditForm'
   ClientHeight = 245
-  ClientWidth = 390
+  ClientWidth = 413
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
@@ -108,6 +108,19 @@ object ActionEditForm: TActionEditForm
     Font.Style = []
     ParentFont = False
   end
+  object lbRadius: TLabel
+    Left = 200
+    Top = 135
+    Width = 53
+    Height = 19
+    Caption = 'Radius:'
+    Font.Charset = DEFAULT_CHARSET
+    Font.Color = clWindowText
+    Font.Height = -16
+    Font.Name = 'Tahoma'
+    Font.Style = []
+    ParentFont = False
+  end
   object cbActionType: TComboBox
     Left = 25
     Top = 35
@@ -121,6 +134,7 @@ object ActionEditForm: TActionEditForm
     Font.Style = []
     ParentFont = False
     TabOrder = 0
+    OnChange = cbActionTypeChange
   end
   object edtTimeStart: TEdit
     Left = 25
@@ -235,5 +249,36 @@ object ActionEditForm: TActionEditForm
     NumbersOnly = True
     ParentFont = False
     TabOrder = 4
+  end
+  object edtRadius: TEdit
+    Left = 200
+    Top = 155
+    Width = 70
+    Height = 27
+    Font.Charset = DEFAULT_CHARSET
+    Font.Color = clWindowText
+    Font.Height = -16
+    Font.Name = 'Tahoma'
+    Font.Style = []
+    NumbersOnly = True
+    ParentFont = False
+    TabOrder = 9
+  end
+  object rgCenterPos: TRadioGroup
+    Left = 300
+    Top = 135
+    Width = 106
+    Height = 58
+    Caption = 'Circle center:'
+    Font.Charset = DEFAULT_CHARSET
+    Font.Color = clWindowText
+    Font.Height = -16
+    Font.Name = 'Tahoma'
+    Font.Style = []
+    Items.Strings = (
+      'Up'
+      'Down')
+    ParentFont = False
+    TabOrder = 10
   end
 end

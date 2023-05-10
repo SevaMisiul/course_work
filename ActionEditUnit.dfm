@@ -4,7 +4,7 @@ object ActionEditForm: TActionEditForm
   BorderStyle = bsDialog
   Caption = 'ActionEditForm'
   ClientHeight = 245
-  ClientWidth = 413
+  ClientWidth = 383
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
@@ -108,12 +108,25 @@ object ActionEditForm: TActionEditForm
     Font.Style = []
     ParentFont = False
   end
-  object lbRadius: TLabel
+  object lbThirdX: TLabel
     Left = 200
     Top = 135
-    Width = 53
+    Width = 58
     Height = 19
-    Caption = 'Radius:'
+    Caption = 'Third X:'
+    Font.Charset = DEFAULT_CHARSET
+    Font.Color = clWindowText
+    Font.Height = -16
+    Font.Name = 'Tahoma'
+    Font.Style = []
+    ParentFont = False
+  end
+  object lbThirdY: TLabel
+    Left = 300
+    Top = 135
+    Width = 59
+    Height = 19
+    Caption = 'Third Y:'
     Font.Charset = DEFAULT_CHARSET
     Font.Color = clWindowText
     Font.Height = -16
@@ -148,7 +161,7 @@ object ActionEditForm: TActionEditForm
     Font.Style = []
     NumbersOnly = True
     ParentFont = False
-    TabOrder = 5
+    TabOrder = 7
   end
   object edtTimeEnd: TEdit
     Left = 25
@@ -162,7 +175,7 @@ object ActionEditForm: TActionEditForm
     Font.Style = []
     NumbersOnly = True
     ParentFont = False
-    TabOrder = 6
+    TabOrder = 8
   end
   object btnCancel: TButton
     Left = 25
@@ -177,7 +190,7 @@ object ActionEditForm: TActionEditForm
     Font.Style = []
     ModalResult = 2
     ParentFont = False
-    TabOrder = 7
+    TabOrder = 9
   end
   object btnOk: TButton
     Left = 125
@@ -192,7 +205,7 @@ object ActionEditForm: TActionEditForm
     Font.Style = []
     ModalResult = 1
     ParentFont = False
-    TabOrder = 8
+    TabOrder = 10
   end
   object edtStartPointX: TEdit
     Left = 200
@@ -250,7 +263,7 @@ object ActionEditForm: TActionEditForm
     ParentFont = False
     TabOrder = 4
   end
-  object edtRadius: TEdit
+  object edtThirdX: TEdit
     Left = 200
     Top = 155
     Width = 70
@@ -262,23 +275,20 @@ object ActionEditForm: TActionEditForm
     Font.Style = []
     NumbersOnly = True
     ParentFont = False
-    TabOrder = 9
+    TabOrder = 5
   end
-  object rgCenterPos: TRadioGroup
+  object edtThirdY: TEdit
     Left = 300
-    Top = 135
-    Width = 106
-    Height = 58
-    Caption = 'Circle center:'
+    Top = 155
+    Width = 70
+    Height = 27
     Font.Charset = DEFAULT_CHARSET
     Font.Color = clWindowText
     Font.Height = -16
     Font.Name = 'Tahoma'
     Font.Style = []
-    Items.Strings = (
-      'Up'
-      'Down')
+    NumbersOnly = True
     ParentFont = False
-    TabOrder = 10
+    TabOrder = 6
   end
 end

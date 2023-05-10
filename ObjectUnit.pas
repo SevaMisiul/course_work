@@ -11,8 +11,6 @@ uses
 type
   TActionType = (actLineMove = 0, actCircleMove = 1);
 
-  TCenterPos = (posUp = 0, posDown = 1);
-
   TAspectFrac = record
     Width, Height: Integer;
   end;
@@ -20,8 +18,7 @@ type
   TACtionInfo = record
     ActType: TActionType;
     TimeStart, TimeEnd: Integer;
-    StartPoint, EndPoint, CircleCenter: TPoint;
-    CenterPos: TCenterPos;
+    StartPoint, EndPoint, ThirdPoint, CircleCenter: TPoint;
     Radius: Integer;
   end;
 
@@ -115,63 +112,23 @@ begin
   Frac.Height := Frac.Height div Tmp;
 end;
 
-procedure CalcCircleCenter(var Act: TACtionInfo);
+procedure CalcCenter(var Act: TACtionInfo);
 var
-  ChordCenter: TPoint;
-  Chord, X11, X12, Y11, Y12, Normal, A, B, C, D, Y2, Y3, X2, X3, R: Extended;
+  X1, X2, X3, Y1, Y2, Y3, X0, Y0: Extended;
 begin
-  X2 := Act.StartPoint.X;
-  Y2 := Act.StartPoint.Y;
+  X1 := Act.StartPoint.X;
+  Y1 := Act.StartPoint.Y;
+  X2 := Act.ThirdPoint.X;
+  Y2 := Act.ThirdPoint.Y;
   X3 := Act.EndPoint.X;
   Y3 := Act.EndPoint.Y;
-  R := Act.Radius;
+  Y0 := ((sqr(X1) - sqr(X3) + sqr(Y1) - sqr(Y3)) / (2 * (Y1 - Y3)) + (sqr(X1) - sqr(X2) + sqr(Y1) - sqr(Y2)) /
+    (2 * (X1 - X2)) * (X3 - X1) / (Y1 - Y3)) / (1 - (Y2 - Y1) * (X3 - X1) / ((X1 - X2) * (Y1 - Y3)));
+  X0 := (sqr(X1) - sqr(X2) + sqr(Y1) - sqr(Y2)) / (2 * (X1 - X2)) + Y0 * (Y2 - Y1) / (X1 - X2);
 
-  if (X2 = X3) and (Y2 <> Y3) then
-  begin
-    Act.CircleCenter.Y := Round((Y2 + Y3) / 2);
-    if Act.CenterPos = posUp then
-      Act.CircleCenter.X := Round(X2 + sqrt(sqr(Act.Radius) - sqr((Y3 - Y2) / 2)))
-    else if Act.CenterPos = posDown then
-      Act.CircleCenter.X := Round(X2 - sqrt(sqr(Act.Radius) - sqr((Y3 - Y2) / 2)));
-  end
-  else if X2 <> X3 then
-  begin
-    A := 4 * sqr(Y2) - 8 * Y2 * Y3 + 4 * sqr(Y3) + 4 * sqr(X2 - X3);
-    B := 4 * (X2 - X3) * X3 * Y2 - 4 * (X2 - X3) * X3 * Y3 - 4 * Y2 * Y2 * Y2 + 4 * sqr(Y2) * Y3 + 4 * Y2 * sqr(Y3) - 4
-      * (X2 - X3) * X2 * Y2 - 4 * Y3 * Y3 * Y3 + 4 * (X2 - X3) * X2 * Y3 - 8 * Y3 * sqr(X2 - X3);
-    C := sqr(X2) * sqr(X2 - X3) + sqr(sqr(Y2)) - 2 * sqr(Y2) * sqr(Y3) - 2 * (X2 - X3) * X3 * sqr(Y2) + 2 * (X2 - X3) *
-      X2 * sqr(Y2) + sqr(sqr(Y3)) + 2 * (X2 - X3) * X3 * sqr(Y3) - 2 * (X2 - X3) * X2 * sqr(Y3) - 2 * X2 * X3 *
-      (X2 - X3) + sqr(X3) * sqr(X2 - X3) + 4 * sqr(Y3) * sqr(X2 - X3) - sqr(R) * 4 * sqr(X2 - X3);
-    D := sqr(B) - 4 * A * C;
-
-    Y11 := (-B + sqrt(D)) / (2 * A);
-    Y12 := (-B - sqrt(D)) / (2 * A);
-
-    X11 := (X2 + X3) / 2 + (Y2 - Y3) * (Y2 + Y3 - 2 * Y11) / ((X2 - X3) * 2);
-    X12 := (X2 + X3) / 2 + (Y2 - Y3) * (Y2 + Y3 - 2 * Y12) / ((X2 - X3) * 2);
-    if Act.CenterPos = posUp then
-      if Y11 > Y12 then
-      begin
-        Act.CircleCenter.X := Round(X11);
-        Act.CircleCenter.Y := Round(Y11);
-      end
-      else
-      begin
-        Act.CircleCenter.X := Round(X12);
-        Act.CircleCenter.Y := Round(Y12);
-      end
-    else if Act.CenterPos = posDown then
-      if Y11 > Y12 then
-      begin
-        Act.CircleCenter.X := Round(X12);
-        Act.CircleCenter.Y := Round(Y12);
-      end
-      else
-      begin
-        Act.CircleCenter.X := Round(X11);
-        Act.CircleCenter.Y := Round(Y11);
-      end
-  end;
+  Act.Radius := Round(sqrt(sqr(X1 - X0) + sqr(Y1 - Y0)));
+  Act.CircleCenter.X := Round(X0);
+  Act.CircleCenter.Y := Round(Y0);
 end;
 
 procedure TObjectImage.AddAction(Act: TACtionInfo);
@@ -179,7 +136,7 @@ var
   TmpNew, Tmp: PActionLI;
 begin
   new(TmpNew);
-  CalcCircleCenter(Act);
+  CalcCenter(Act);
   TmpNew^.Info := Act;
   Tmp := FActionList;
   while (Tmp^.Next <> nil) and (Tmp^.Next^.Info.TimeStart < Act.TimeStart) do
@@ -549,7 +506,7 @@ end;
 
 procedure TObjectImage.SetAction(P: PActionLI; Act: TACtionInfo);
 begin
-  CalcCircleCenter(Act);
+  CalcCenter(Act);
   P^.Info := Act;
   if Assigned(UpdateOneAction) then
     UpdateOneAction(Act);
@@ -579,7 +536,8 @@ procedure TObjectImage.TimerAction(Sender: TObject);
 var
   Tmp: PObjectLI;
   TimeLeft, XLeft, YLeft: Integer;
-  TimeInc, PixelTime: Real;
+  TimeInc, PixelTime, R1X, R1Y, R2X, R2Y, Alpha, AlphaInc: Real;
+  new: TPoint;
 begin
   Inc(FCurrTime, Timer.Interval);
   if CurrAction = nil then
@@ -595,9 +553,9 @@ begin
     FActionBuff.Canvas.StretchDraw(Rect(0, 0, (Parent as TMainForm).ClientWidth, (Parent as TMainForm).ClientHeight),
       BackMenuForm.BkPict.Graphic);
     Tmp := (Parent as TMainForm).ObjectList;
+    TimeLeft := (CurrAction^.Info.TimeEnd * 1000 - CurrTime);
     if CurrAction^.Info.ActType = actLineMove then
     begin
-      TimeLeft := (CurrAction^.Info.TimeEnd * 1000 - CurrTime);
       XLeft := (CurrAction^.Info.EndPoint.X - CurrCoordinates.X);
       YLeft := (CurrAction^.Info.EndPoint.Y - CurrCoordinates.Y);
       if (Abs(XLeft) <> 0) or (Abs(YLeft) <> 0) then
@@ -610,19 +568,30 @@ begin
         Inc(FCurrCoordinates.Y, Round(YLeft / TimeLeft * Round(TimeInc)));
         Timer.Interval := Round(TimeInc);
       end;
-      while Tmp <> nil do
-      begin
-        with Tmp^.ObjectImage do
-          FActionBuff.Canvas.Draw(CurrCoordinates.X - Picture.Width div 2, CurrCoordinates.Y - Picture.Height div 2,
-            Picture.Graphic);
-        Tmp := Tmp^.Next;
-      end;
-      (Parent as TMainForm).Canvas.Draw(0, 0, FActionBuff);
     end
     else if CurrAction^.Info.ActType = actCircleMove then
     begin
-
+      with CurrAction^.Info do
+      begin
+        R1X := CircleCenter.X - FCurrCoordinates.X;
+        R1Y := CircleCenter.Y - FCurrCoordinates.Y;
+        R2X := CircleCenter.X - EndPoint.X;
+        R2Y := CircleCenter.Y - EndPoint.Y;
+        Alpha := ArcCos((R1X * R2X + R1Y * R2Y) / (sqr(Radius)));
+        AlphaInc := Min(Alpha, (Alpha / (TimeEnd - FCurrTime) * 30));
+        new.X := CircleCenter.X - Round(FCurrCoordinates.X * Cos(AlphaInc) - FCurrCoordinates.Y * Sin(AlphaInc));
+        new.Y := CircleCenter.Y - Round(FCurrCoordinates.X * Sin(AlphaInc) + FCurrCoordinates.Y * Cos(AlphaInc));
+        FCurrCoordinates := new;
+      end;
     end;
+    while Tmp <> nil do
+    begin
+      with Tmp^.ObjectImage do
+        FActionBuff.Canvas.Draw(CurrCoordinates.X - Picture.Width div 2, CurrCoordinates.Y - Picture.Height div 2,
+          Picture.Graphic);
+      Tmp := Tmp^.Next;
+    end;
+    (Parent as TMainForm).Canvas.Draw(0, 0, FActionBuff);
   end;
 end;
 

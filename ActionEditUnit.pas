@@ -24,9 +24,10 @@ type
     edtEndPointX: TEdit;
     lbEndPointY: TLabel;
     edtEndPointY: TEdit;
-    lbRadius: TLabel;
-    edtRadius: TEdit;
-    rgCenterPos: TRadioGroup;
+    lbThirdX: TLabel;
+    lbThirdY: TLabel;
+    edtThirdX: TEdit;
+    edtThirdY: TEdit;
     procedure FormCreate(Sender: TObject);
     procedure FormCloseQuery(Sender: TObject; var CanClose: Boolean);
     procedure cbActionTypeChange(Sender: TObject);
@@ -54,17 +55,19 @@ procedure TActionEditForm.cbActionTypeChange(Sender: TObject);
 begin
   if TActionType(cbActionType.ItemIndex) = actLineMove then
   begin
-    lbRadius.Visible := False;
-    edtRadius.Visible := False;
-    rgCenterPos.Visible := False;
+    lbThirdX.Visible := False;
+    lbThirdY.Visible := False;
+    edtThirdX.Visible := False;
+    edtThirdY.Visible := False;
   end
   else if TActionType(cbActionType.ItemIndex) = actCircleMove then
   begin
-    lbRadius.Visible := True;
-    edtRadius.Visible := True;
-    rgCenterPos.Visible := True;
-    rgCenterPos.ItemIndex := 0;
-    edtRadius.Text := '';
+    lbThirdX.Visible := True;
+    lbThirdY.Visible := True;
+    edtThirdX.Visible := True;
+    edtThirdY.Visible := True;
+    edtThirdX.Text := '';
+    edtThirdY.Text := '';
   end;
 end;
 
@@ -73,15 +76,29 @@ var
   Tmp: PActionLI;
   StartT, EndT: Integer;
   IsCorrect: Boolean;
+  S, T, E: TPoint;
 begin
   if (ModalResult = mrOk) and ((edtStartPointX.Text = '') or (edtStartPointY.Text = '') or (edtEndPointX.Text = '') or
     (edtEndPointY.Text = '') or (edtTimeStart.Text = '') or (edtTimeEnd.Text = '') or
     (StrToInt(edtTimeStart.Text) >= StrToInt(edtTimeEnd.Text)) or ((TActionType(cbActionType.ItemIndex) = actCircleMove)
-    and ((edtRadius.Text = '') or (StrToInt(edtRadius.Text) < sqrt(sqr(StrToInt(edtStartPointX.Text) -
-    StrToInt(edtEndPointX.Text)) + sqr(StrToInt(edtStartPointY.Text) - StrToInt(edtEndPointY.Text))) / 2)))) then
+    and ((edtThirdX.Text = '') or (edtThirdY.Text = '')))) then
   begin
     ShowMessage('Fill in the fields correctly');
     CanClose := False;
+  end
+  else if (ModalResult = mrOk) and ((TActionType(cbActionType.ItemIndex) = actCircleMove)) then
+  begin
+    S.X := StrToInt(edtStartPointX.Text);
+    E.X := StrToInt(edtEndPointX.Text);
+    T.X := StrToInt(edtThirdX.Text);
+    S.Y := StrToInt(edtStartPointY.Text);
+    E.Y := StrToInt(edtEndPointY.Text);
+    T.Y := StrToInt(edtThirdY.Text);
+    if (S.X - T.X) * (E.Y - T.Y) = (S.Y - T.Y) * (E.X - T.X) then
+    begin
+      ShowMessage('The points must not lie on the same line');
+      CanClose := False;
+    end;
   end
   else if (ModalResult = mrOk) and (FObj.ActionList[0] <> nil) and
     (StrToInt(edtTimeStart.Text) < FObj.EndActionList^.Info.TimeEnd) then
@@ -125,8 +142,8 @@ begin
   Act.EndPoint.Y := StrToInt(edtEndPointY.Text);
   if Act.ActType = actCircleMove then
   begin
-    Act.Radius := StrToInt(edtRadius.Text);
-    ACt.CenterPos := TCenterPos(rgCenterPos.ItemIndex);
+    Act.ThirdPoint.X := StrToInt(edtThirdX.Text);
+    Act.ThirdPoint.Y := StrToInt(edtThirdY.Text);
   end;
 end;
 
@@ -174,8 +191,8 @@ begin
   cbActionTypeChange(Self);
   if Act.ActType = actCircleMove then
   begin
-    edtRadius.Text := IntToStr(Act.Radius);
-    rgCenterPos.ItemIndex := Ord(Act.CenterPos);
+    edtThirdX.Text := IntToStr(Act.ThirdPoint.X);
+    edtThirdY.Text := IntToStr(Act.ThirdPoint.Y);
   end;
   edtTimeStart.Text := IntToStr(Act.TimeStart);
   edtTimeEnd.Text := IntToStr(Act.TimeEnd);

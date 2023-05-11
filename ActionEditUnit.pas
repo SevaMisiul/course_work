@@ -4,9 +4,12 @@ interface
 
 uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
-  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, ObjectUnit, Vcl.ExtCtrls;
+  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, ObjectUnit, Vcl.ExtCtrls, Vcl.Menus, Vcl.Buttons,
+  ObjectOptionsUnit;
 
 type
+  TPointEdit = (pStart, pEnd, pThird);
+
   TActionEditForm = class(TForm)
     cbActionType: TComboBox;
     lbActionType: TLabel;
@@ -28,17 +31,28 @@ type
     lbThirdY: TLabel;
     edtThirdX: TEdit;
     edtThirdY: TEdit;
+    bbtnStartPoin: TBitBtn;
+    bbtnEndPoint: TBitBtn;
+    bbtnThirdPoint: TBitBtn;
     procedure FormCreate(Sender: TObject);
     procedure FormCloseQuery(Sender: TObject; var CanClose: Boolean);
     procedure cbActionTypeChange(Sender: TObject);
+    procedure bbtnStartPoinClick(Sender: TObject);
+    procedure bbtnEndPointClick(Sender: TObject);
+    procedure bbtnThirdPointClick(Sender: TObject);
+    procedure FormMouseDown(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
   private
     FObj: TObjectImage;
     FIsEditing: Boolean;
     FCurrAct: TACtionInfo;
+    FIsWaitingClick: Boolean;
+    FPointEdit: TPointEdit;
+    FParentForm: TObjectOptionsForm;
+    procedure PrepareForClick(TPEdt: TPointEdit);
     procedure GetActionInfo(var Act: TACtionInfo);
   public
-    function ShowForAdd(var Act: TACtionInfo; Obj: TObjectImage): TModalResult;
-    function ShowForEdit(var Act: TACtionInfo; Obj: TObjectImage): TModalResult;
+    function ShowForAdd(var Act: TACtionInfo; Obj: TObjectImage; ParentF: TObjectOptionsForm): TModalResult;
+    function ShowForEdit(var Act: TACtionInfo; Obj: TObjectImage; ParentF: TObjectOptionsForm): TModalResult;
   end;
 
 var
@@ -49,7 +63,22 @@ implementation
 {$R *.dfm}
 
 uses
-  ObjectOptionsUnit;
+  MainUnit;
+
+procedure TActionEditForm.bbtnEndPointClick(Sender: TObject);
+begin
+  PrepareForClick(pEnd);
+end;
+
+procedure TActionEditForm.bbtnStartPoinClick(Sender: TObject);
+begin
+  PrepareForClick(pStart);
+end;
+
+procedure TActionEditForm.bbtnThirdPointClick(Sender: TObject);
+begin
+  PrepareForClick(pThird);
+end;
 
 procedure TActionEditForm.cbActionTypeChange(Sender: TObject);
 begin
@@ -59,6 +88,7 @@ begin
     lbThirdY.Visible := False;
     edtThirdX.Visible := False;
     edtThirdY.Visible := False;
+    bbtnThirdPoint.Visible := False;
   end
   else if TActionType(cbActionType.ItemIndex) = actCircleMove then
   begin
@@ -68,6 +98,7 @@ begin
     edtThirdY.Visible := True;
     edtThirdX.Text := '';
     edtThirdY.Text := '';
+    bbtnThirdPoint.Visible := True;
   end;
 end;
 
@@ -131,6 +162,39 @@ begin
     cbActionType.Items.Add(ActionNames[I]);
 end;
 
+procedure TActionEditForm.FormMouseDown(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
+var
+  M: TPoint;
+begin
+  if FIsWaitingClick then
+  begin
+    ReleaseCapture;
+    M.X := X;
+    M.Y := Y;
+    M := ClientToScreen(M);
+    M := MainForm.ScreenToClient(M);
+    case FPointEdit of
+      pStart:
+        begin
+          edtStartPointX.Text := IntToStr(M.X);
+          edtStartPointY.Text := IntToStr(M.Y);
+        end;
+      pEnd:
+        begin
+          edtEndPointX.Text := IntToStr(M.X);
+          edtEndPointY.Text := IntToStr(M.Y);
+        end;
+      pThird:
+        begin
+          edtThirdX.Text := IntToStr(M.X);
+          edtThirdY.Text := IntToStr(M.Y);
+        end;
+    end;
+    FParentForm.Show;
+    Self.Show;
+  end;
+end;
+
 procedure TActionEditForm.GetActionInfo(var Act: TACtionInfo);
 begin
   Act.ActType := TActionType(cbActionType.ItemIndex);
@@ -147,12 +211,23 @@ begin
   end;
 end;
 
-function TActionEditForm.ShowForAdd(var Act: TACtionInfo; Obj: TObjectImage): TModalResult;
+procedure TActionEditForm.PrepareForClick(TPEdt: TPointEdit);
+begin
+  SetCaptureControl(Self);
+  FIsWaitingClick := True;
+  FPointEdit := TPEdt;
+  Self.Hide;
+  FParentForm.Hide;
+end;
+
+function TActionEditForm.ShowForAdd(var Act: TACtionInfo; Obj: TObjectImage; ParentF: TObjectOptionsForm): TModalResult;
 var
   Tmp: TACtionInfo;
 begin
   FObj := Obj;
   FIsEditing := False;
+  FIsWaitingClick := False;
+  FParentForm := ParentF;
 
   if Obj.ActionList[0] <> nil then
   begin
@@ -181,11 +256,14 @@ begin
   end;
 end;
 
-function TActionEditForm.ShowForEdit(var Act: TACtionInfo; Obj: TObjectImage): TModalResult;
+function TActionEditForm.ShowForEdit(var Act: TACtionInfo; Obj: TObjectImage; ParentF: TObjectOptionsForm)
+  : TModalResult;
 begin
   FObj := Obj;
   FIsEditing := True;
   FCurrAct := Act;
+  FIsWaitingClick := False;
+  FParentForm := ParentF;
 
   cbActionType.ItemIndex := Ord(Act.ActType);
   cbActionTypeChange(Self);

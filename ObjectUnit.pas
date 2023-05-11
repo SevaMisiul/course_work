@@ -18,8 +18,8 @@ type
   TACtionInfo = record
     ActType: TActionType;
     TimeStart, TimeEnd: Integer;
-    StartPoint, EndPoint, ThirdPoint, CircleCenter: TPoint;
-    Radius: Integer;
+    StartPoint, EndPoint, ThirdPoint: TPoint;
+    CircleCenterX, CircleCenterY, Radius: Extended;
   end;
 
   PActionLI = ^TActionLI;
@@ -44,7 +44,7 @@ type
     procedure ObjectImageMouseDown(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
     procedure TimerAction(Sender: TObject);
   private
-    FCurrCoordinates: TPoint;
+    FCurrCoordinatesX, FCurrCoordinatesY: Extended;
     FCurrAction: PActionLI;
     FOriginPicture: TPicture;
     FAspectRatio: TAspectFrac;
@@ -57,7 +57,6 @@ type
     FUpdateActionList: TOnActionListChanged;
     FUpdateActionAfterDelete: TOnActionDelete;
     FUpdateOneAction: TOnActionChanged;
-    procedure SetCurrCoordinates(const Value: TPoint);
     procedure SetUpdateActionList(const Value: TOnActionListChanged);
     procedure SetUpdateAfterDelete(const Value: TOnActionDelete);
     procedure SetUpdateOneAction(const Value: TOnActionChanged);
@@ -76,7 +75,8 @@ type
     property UpdateActionAfterDelete: TOnActionDelete read FUpdateActionAfterDelete write SetUpdateAfterDelete;
     property UpdateActionList: TOnActionListChanged read FUpdateActionList write SetUpdateActionList;
 
-    property CurrCoordinates: TPoint read FCurrCoordinates write SetCurrCoordinates;
+    property CurrX: Extended read FCurrCoordinatesX write FCurrCoordinatesX;
+    property CurrY: Extended read FCurrCoordinatesY write FCurrCoordinatesY;
     property CurrAction: PActionLI read FCurrAction write FCurrAction;
     property CurrTime: Integer read FCurrTime write FCurrTime;
     property ActionList[Index: Integer]: PActionLI read GetActionItem;
@@ -88,7 +88,7 @@ type
   end;
 
 const
-  ActionNames: array [TActionType] of string[20] = ('Line move', 'Circle move');
+  ActionNames: array [TActionType] of string[20] = ('Linear move', 'Circular movement');
 
 implementation
 
@@ -126,9 +126,9 @@ begin
     (2 * (X1 - X2)) * (X3 - X1) / (Y1 - Y3)) / (1 - (Y2 - Y1) * (X3 - X1) / ((X1 - X2) * (Y1 - Y3)));
   X0 := (sqr(X1) - sqr(X2) + sqr(Y1) - sqr(Y2)) / (2 * (X1 - X2)) + Y0 * (Y2 - Y1) / (X1 - X2);
 
-  Act.Radius := Round(sqrt(sqr(X1 - X0) + sqr(Y1 - Y0)));
-  Act.CircleCenter.X := Round(X0);
-  Act.CircleCenter.Y := Round(Y0);
+  Act.Radius := sqrt(sqr(X1 - X0) + sqr(Y1 - Y0));
+  Act.CircleCenterX := X0;
+  Act.CircleCenterY := Y0;
 end;
 
 procedure TObjectImage.AddAction(Act: TACtionInfo);
@@ -136,7 +136,8 @@ var
   TmpNew, Tmp: PActionLI;
 begin
   new(TmpNew);
-  CalcCenter(Act);
+  if Act.ActType = actCircleMove then
+    CalcCenter(Act);
   TmpNew^.Info := Act;
   Tmp := FActionList;
   while (Tmp^.Next <> nil) and (Tmp^.Next^.Info.TimeStart < Act.TimeStart) do
@@ -506,15 +507,11 @@ end;
 
 procedure TObjectImage.SetAction(P: PActionLI; Act: TACtionInfo);
 begin
-  CalcCenter(Act);
+  if Act.ActType = actCircleMove then
+    CalcCenter(Act);
   P^.Info := Act;
   if Assigned(UpdateOneAction) then
     UpdateOneAction(Act);
-end;
-
-procedure TObjectImage.SetCurrCoordinates(const Value: TPoint);
-begin
-  FCurrCoordinates := Value;
 end;
 
 procedure TObjectImage.SetUpdateActionList(const Value: TOnActionListChanged);
@@ -535,17 +532,31 @@ end;
 procedure TObjectImage.TimerAction(Sender: TObject);
 var
   Tmp: PObjectLI;
-  TimeLeft, XLeft, YLeft: Integer;
-  TimeInc, PixelTime, R1X, R1Y, R2X, R2Y, Alpha, AlphaInc: Real;
-  new: TPoint;
+  TimeLeft: Integer;
+  IsEnd: Boolean;
+  XLeft, YLeft, TimeInc, PixelTime, R1X, R1Y, R2X, R2Y, Alpha, AlphaInc, NX, NY: Extended;
 begin
   Inc(FCurrTime, Timer.Interval);
   if CurrAction = nil then
-    Timer.Enabled := False
+  begin
+    Timer.Enabled := False;
+    Tmp := (Parent as TMainForm).ObjectList;
+    IsEnd := True;
+    while Tmp <> nil do
+    begin
+      IsEnd := IsEnd and not Tmp^.ObjectImage.Timer.Enabled;
+      Tmp := Tmp^.Next;
+    end;
+    if IsEnd then
+      (Parent as TMainForm).CompleteAnimation;
+  end
   else if CurrTime < CurrAction^.Info.TimeStart * 1000 then
     Timer.Interval := CurrAction^.Info.TimeStart * 1000 - CurrTime
   else if CurrTime = CurrAction^.Info.TimeStart * 1000 then
-    FCurrCoordinates := FCurrAction^.Info.StartPoint
+  begin
+    FCurrCoordinatesX := FCurrAction^.Info.StartPoint.X;
+    FCurrCoordinatesY := FCurrAction^.Info.StartPoint.Y;
+  end
   else if CurrTime >= CurrAction^.Info.TimeEnd * 1000 then
     FCurrAction := CurrAction^.Next;
   if (CurrAction <> nil) and (CurrTime >= CurrAction^.Info.TimeStart * 1000) then
@@ -554,41 +565,44 @@ begin
       BackMenuForm.BkPict.Graphic);
     Tmp := (Parent as TMainForm).ObjectList;
     TimeLeft := (CurrAction^.Info.TimeEnd * 1000 - CurrTime);
+    XLeft := CurrAction^.Info.EndPoint.X - FCurrCoordinatesX;
+    YLeft := CurrAction^.Info.EndPoint.Y - FCurrCoordinatesY;
+    TimeInc := 0;
     if CurrAction^.Info.ActType = actLineMove then
     begin
-      XLeft := (CurrAction^.Info.EndPoint.X - CurrCoordinates.X);
-      YLeft := (CurrAction^.Info.EndPoint.Y - CurrCoordinates.Y);
       if (Abs(XLeft) <> 0) or (Abs(YLeft) <> 0) then
       begin
         PixelTime := TimeLeft / Max(Abs(XLeft), Abs(YLeft));
-        TimeInc := 0;
-        while (TimeInc <> TimeLeft) and (TimeInc < 20) do
-          TimeInc := Min(TimeLeft, TimeInc + PixelTime);
-        Inc(FCurrCoordinates.X, Round(XLeft / TimeLeft * Round(TimeInc)));
-        Inc(FCurrCoordinates.Y, Round(YLeft / TimeLeft * Round(TimeInc)));
-        Timer.Interval := Round(TimeInc);
+        while TimeInc < 30 do
+          TimeInc := TimeInc + PixelTime;
+        TimeInc := Min(TimeInc, TimeLeft);
+        FCurrCoordinatesX := FCurrCoordinatesX + XLeft / TimeLeft * Round(TimeInc);
+        FCurrCoordinatesY := FCurrCoordinatesY + YLeft / TimeLeft * Round(TimeInc);
       end;
     end
     else if CurrAction^.Info.ActType = actCircleMove then
     begin
+      TimeInc := Min(30, TimeLeft);
       with CurrAction^.Info do
       begin
-        R1X := CircleCenter.X - FCurrCoordinates.X;
-        R1Y := CircleCenter.Y - FCurrCoordinates.Y;
-        R2X := CircleCenter.X - EndPoint.X;
-        R2Y := CircleCenter.Y - EndPoint.Y;
+        R1X := CircleCenterX - FCurrCoordinatesX;
+        R1Y := CircleCenterY - FCurrCoordinatesY;
+        R2X := CircleCenterX - EndPoint.X;
+        R2Y := CircleCenterY - EndPoint.Y;
         Alpha := ArcCos((R1X * R2X + R1Y * R2Y) / (sqr(Radius)));
-        AlphaInc := Min(Alpha, (Alpha / (TimeEnd - FCurrTime) * 30));
-        new.X := CircleCenter.X - Round(FCurrCoordinates.X * Cos(AlphaInc) - FCurrCoordinates.Y * Sin(AlphaInc));
-        new.Y := CircleCenter.Y - Round(FCurrCoordinates.X * Sin(AlphaInc) + FCurrCoordinates.Y * Cos(AlphaInc));
-        FCurrCoordinates := new;
+        AlphaInc := Alpha / (TimeEnd * 1000 - FCurrTime) * TimeInc;
+        NX := CircleCenterX - (R1X * Cos(AlphaInc) + R1Y * Sin(AlphaInc));
+        NY := CircleCenterY - (-R1X * Sin(AlphaInc) + R1Y * Cos(AlphaInc));
       end;
+      FCurrCoordinatesX := NX;
+      FCurrCoordinatesY := NY;
     end;
+    Timer.Interval := Round(TimeInc);
     while Tmp <> nil do
     begin
-      with Tmp^.ObjectImage do
-        FActionBuff.Canvas.Draw(CurrCoordinates.X - Picture.Width div 2, CurrCoordinates.Y - Picture.Height div 2,
-          Picture.Graphic);
+      FActionBuff.Canvas.Draw(Round(Tmp^.ObjectImage.FCurrCoordinatesX) - Tmp^.ObjectImage.Picture.Width div 2,
+        Round(Tmp^.ObjectImage.FCurrCoordinatesY) - Tmp^.ObjectImage.Picture.Height div 2,
+        Tmp^.ObjectImage.Picture.Graphic);
       Tmp := Tmp^.Next;
     end;
     (Parent as TMainForm).Canvas.Draw(0, 0, FActionBuff);

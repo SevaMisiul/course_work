@@ -6,7 +6,7 @@ uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants,
   System.Classes, Vcl.Graphics, IOUtils, Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.ExtCtrls, Vcl.StdCtrls,
   Vcl.Imaging.pngimage, Vcl.Imaging.jpeg, BackMenuUnit, Vcl.ExtDlgs, Math, System.Actions, Vcl.ActnList, Vcl.Menus,
-  ObjectUnit, StrUtils;
+  ObjectUnit, StrUtils, ActionEditUnit;
 
 type
   TObjectIcon = class(TImage)
@@ -56,17 +56,18 @@ type
   private
     FObjectList: PObjectLI;
     FSelectedPicture: TPicture;
-    FWaitingFormClick, FIsSelectedPng, FWaitingCoordinatesClick: Boolean;
+    FWaitingClickToCreate, FIsSelectedPng: Boolean;
     FAddObjectIcon: TImage;
     FObjectPanelTop: Integer;
+    FLastClick: TPoint;
     FObjectFileNames: System.TArray<string>;
     procedure SwitchPanel;
   public
     destructor Destroy; override;
     procedure AddObject(Obj: TObjectImage);
+    procedure CompleteAnimation;
     { properties }
     property ObjectList: PObjectLI read FObjectList write FObjectList;
-    property WaitingCoordinatesClick: Boolean read FWaitingCoordinatesClick write FWaitingCoordinatesClick;
     property ObjectPanelTop: Integer read FObjectPanelTop write FObjectPanelTop;
   end;
 
@@ -90,11 +91,14 @@ begin
     begin
       if ActionList[0] <> nil then
       begin
+        CurrX := Left + Width div 2;
+        CurrY := Top + Height div 2;
         CurrTime := -15;
         CurrAction := ActionList[0];
       end;
       Timer.Enabled := True;
       Timer.Interval := 15;
+      Visible := False;
     end;
     Tmp := Tmp^.Next;
   end;
@@ -147,6 +151,20 @@ begin
   end;
 end;
 
+procedure TMainForm.CompleteAnimation;
+var
+  Tmp: PObjectLI;
+begin
+  imgPanelOpen.Visible := True;
+  Tmp := ObjectList;
+  while Tmp <> nil do
+  begin
+    Tmp^.ObjectImage.Visible := True;
+    Tmp := Tmp^.Next;
+  end;
+  Invalidate;
+end;
+
 destructor TMainForm.Destroy;
 var
   Tmp1, Tmp2: PObjectLI;
@@ -166,11 +184,12 @@ procedure TMainForm.FormClick(Sender: TObject);
 var
   MousePos: TPoint;
 begin
-  if FWaitingFormClick then
+  if FWaitingClickToCreate then
   begin
     GetCursorPos(MousePos);
-    TObjectImage.Create(Self, MousePos.X, MousePos.Y, FSelectedPicture, FIsSelectedPng);
-    FWaitingFormClick := False;
+    MousePos := ScreenToClient(MousePos);
+    TObjectImage.Create(Self, MousePos.X - Left, MousePos.Y - Top, FSelectedPicture, FIsSelectedPng);
+    FWaitingClickToCreate := False;
   end;
 end;
 
@@ -185,8 +204,7 @@ begin
   CreateDir('objects');
   FObjectFileNames := TDirectory.GetFiles('objects');
   ObjectPanelTop := 20;
-  FWaitingFormClick := False;
-  FWaitingCoordinatesClick := False;
+  FWaitingClickToCreate := False;
   FObjectList := nil;
 
   for Path in FObjectFileNames do
@@ -207,7 +225,7 @@ begin
   if Source is TObjectIcon then
   begin
     TObjectImage.Create(Self, X, Y, FSelectedPicture, FIsSelectedPng);
-    FWaitingFormClick := False;
+    FWaitingClickToCreate := False;
   end
   else
   begin
@@ -286,7 +304,7 @@ procedure TObjectIcon.ObjectIconMouseDown(Sender: TObject; Button: TMouseButton;
 begin
   TControl(Sender).BeginDrag(False);
   (Self.Parent.Parent as TMainForm).FIsSelectedPng := TObjectIcon(Sender).IsPng;
-  (Self.Parent.Parent as TMainForm).FWaitingFormClick := True;
+  (Self.Parent.Parent as TMainForm).FWaitingClickToCreate := True;
   (Self.Parent.Parent as TMainForm).FSelectedPicture := TImage(Sender).Picture;
   (Self.Parent.Parent as TMainForm).SwitchPanel;
 end;

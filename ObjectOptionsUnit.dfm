@@ -24,7 +24,7 @@ object ObjectOptionsForm: TObjectOptionsForm
     OnPaint = pbPicturePaint
   end
   object lbHeight: TLabel
-    Left = 265
+    Left = 410
     Top = 60
     Width = 52
     Height = 19
@@ -37,7 +37,7 @@ object ObjectOptionsForm: TObjectOptionsForm
     ParentFont = False
   end
   object lbWidth: TLabel
-    Left = 410
+    Left = 265
     Top = 60
     Width = 47
     Height = 19
@@ -76,8 +76,8 @@ object ObjectOptionsForm: TObjectOptionsForm
     ParentFont = False
   end
   object lbTop: TLabel
-    Left = 265
-    Top = 116
+    Left = 410
+    Top = 120
     Width = 34
     Height = 19
     Caption = 'Top:'
@@ -89,8 +89,8 @@ object ObjectOptionsForm: TObjectOptionsForm
     ParentFont = False
   end
   object lbLeft: TLabel
-    Left = 410
-    Top = 116
+    Left = 265
+    Top = 120
     Width = 32
     Height = 19
     Caption = 'Left:'
@@ -102,7 +102,7 @@ object ObjectOptionsForm: TObjectOptionsForm
     ParentFont = False
   end
   object edtHeight: TEdit
-    Left = 265
+    Left = 410
     Top = 80
     Width = 120
     Height = 27
@@ -218,7 +218,7 @@ object ObjectOptionsForm: TObjectOptionsForm
     TabOrder = 8
   end
   object edtWidth: TEdit
-    Left = 410
+    Left = 265
     Top = 80
     Width = 120
     Height = 27
@@ -232,8 +232,8 @@ object ObjectOptionsForm: TObjectOptionsForm
     OnChange = edtWidthChange
   end
   object edtTop: TEdit
-    Left = 265
-    Top = 136
+    Left = 410
+    Top = 141
     Width = 120
     Height = 27
     Font.Charset = DEFAULT_CHARSET
@@ -247,8 +247,8 @@ object ObjectOptionsForm: TObjectOptionsForm
     OnChange = edtHeightChange
   end
   object edtLeft: TEdit
-    Left = 410
-    Top = 136
+    Left = 265
+    Top = 140
     Width = 120
     Height = 27
     Font.Charset = DEFAULT_CHARSET

@@ -5,7 +5,7 @@ interface
 uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
   Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, Vcl.ExtCtrls, Vcl.ComCtrls, Math, Vcl.Imaging.pngimage,
-  ActionEditUnit, ObjectUnit, System.Actions, Vcl.ActnList;
+  ObjectUnit, System.Actions, Vcl.ActnList;
 
 type
   TObjectOptionsForm = class(TForm)
@@ -59,12 +59,15 @@ implementation
 
 {$R *.dfm}
 
+uses
+  ActionEditUnit;
+
 procedure TObjectOptionsForm.actAddActionExecute(Sender: TObject);
 var
   Act: TActionInfo;
   Res: TModalResult;
 begin
-  Res := ActionEditForm.ShowForAdd(Act, FObjectOwner);
+  Res := ActionEditForm.ShowForAdd(Act, FObjectOwner, Self);
 
   if Res = mrOk then
     FObjectOwner.AddAction(Act);
@@ -84,7 +87,7 @@ begin
   Tmp := FObjectOwner.ActionList[lvActions.ItemIndex];
   Act := Tmp^.Info;
 
-  Res := ActionEditForm.ShowForEdit(Act, FObjectOwner);
+  Res := ActionEditForm.ShowForEdit(Act, FObjectOwner, Self);
 
   if Res = mrOk then
     FObjectOwner.SetAction(Tmp, Act);

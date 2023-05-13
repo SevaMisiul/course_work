@@ -53,7 +53,9 @@ type
     procedure FormDragDrop(Sender, Source: TObject; X, Y: Integer);
     procedure imgPanelCloseClick(Sender: TObject);
     procedure actRunAnimationExecute(Sender: TObject);
+    procedure Animation(Sender: TObject);
   private
+    FLastUpdate, FRunTime: Cardinal;
     FObjectList: PObjectLI;
     FSelectedPicture: TPicture;
     FWaitingClickToCreate, FIsSelectedPng: Boolean;
@@ -93,15 +95,16 @@ begin
       begin
         CurrX := Left + Width div 2;
         CurrY := Top + Height div 2;
-        CurrTime := -15;
         CurrAction := ActionList[0];
       end;
-      Timer.Enabled := True;
-      Timer.Interval := 15;
       Visible := False;
     end;
     Tmp := Tmp^.Next;
   end;
+  OnPaint := Animation;
+  FRunTime := GetTickCount;
+  FLastUpdate := 0;
+  Self.Invalidate;
 end;
 
 procedure TMainForm.AddImgClick(Sender: TObject);
@@ -138,6 +141,65 @@ begin
   ObjectList := Tmp;
 end;
 
+procedure TMainForm.Animation(Sender: TObject);
+var
+  Tmp: PObjectLI;
+  CurrTime: Cardinal;
+  IsEnd: Boolean;
+  PixelTime, R1X, R1Y, R2X, R2Y, Alpha, CurrAlpha, NX, NY: Extended;
+  TmpBuff: TBitMap;
+begin
+  CurrTime := GetTickCount - FRunTime;
+
+  TmpBuff := TBitMap.Create;
+  TmpBuff.SetSize(ClientWidth, ClientHeight);
+  TmpBuff.Canvas.StretchDraw(Rect(0, 0, ClientWidth, ClientHeight), BackMenuForm.BkPict.Graphic);
+  Tmp := ObjectList;
+  IsEnd := True;
+  while Tmp <> nil do
+    with Tmp^.ObjectImage do
+    begin
+      IsEnd := IsEnd and (CurrAction = nil);
+      if (CurrAction <> nil) and (CurrTime >= CurrAction^.Info.TimeEnd * 1000) then
+        CurrAction := CurrAction^.Next;
+      if (CurrAction <> nil) and (CurrTime >= CurrAction^.Info.TimeStart * 1000) then
+      begin
+        if CurrAction^.Info.ActType = actLineMove then
+          with CurrAction^.Info do
+          begin
+            CurrX := StartPoint.X + (EndPoint.X - StartPoint.X) / ((TimeEnd - TimeStart) * 1000) *
+              (CurrTime - TimeStart);
+            CurrY := StartPoint.Y + (EndPoint.Y - StartPoint.Y) / ((TimeEnd - TimeStart) * 1000) *
+              (CurrTime - TimeStart);
+          end
+        else if CurrAction^.Info.ActType = actCircleMove then
+        begin
+          with CurrAction^.Info do
+          begin
+            R1X := CircleCenterX - StartPoint.X;
+            R1Y := CircleCenterY - StartPoint.Y;
+            R2X := CircleCenterX - EndPoint.X;
+            R2Y := CircleCenterY - EndPoint.Y;
+            Alpha := ArcCos((R1X * R2X + R1Y * R2Y) / (sqr(Radius)));
+            CurrAlpha := Alpha / ((TimeEnd - TimeStart) * 1000) * (CurrTime - TimeStart);
+            NX := CircleCenterX - (R1X * Cos(CurrAlpha) + R1Y * Sin(CurrAlpha));
+            NY := CircleCenterY - (-R1X * Sin(CurrAlpha) + R1Y * Cos(CurrAlpha));
+          end;
+          CurrX := NX;
+          CurrY := NY;
+        end;
+        TmpBuff.Canvas.Draw(Round(CurrX) - Picture.Width div 2, Round(CurrY) - Picture.Height div 2, Picture.Graphic);
+      end;
+      Tmp := Tmp^.Next;
+    end;
+  Canvas.Draw(0, 0, TmpBuff);
+  if IsEnd then
+    CompleteAnimation;
+  FLastUpdate := CurrTime;
+  Sleep(0);
+  Invalidate;
+end;
+
 procedure TMainForm.btnCreateAnimationClick(Sender: TObject);
 begin
   BackMenuForm.ShowModal;
@@ -162,7 +224,7 @@ begin
     Tmp^.ObjectImage.Visible := True;
     Tmp := Tmp^.Next;
   end;
-  Invalidate;
+  OnPaint := FormPaint;
 end;
 
 destructor TMainForm.Destroy;

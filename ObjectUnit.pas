@@ -42,7 +42,6 @@ type
     Timer: TTimer;
     procedure ObjectImageDblClick(Sender: TObject);
     procedure ObjectImageMouseDown(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
-    procedure TimerAction(Sender: TObject);
   private
     FCurrCoordinatesX, FCurrCoordinatesY: Extended;
     FCurrAction: PActionLI;
@@ -51,9 +50,7 @@ type
     FAngle: Integer;
     FActionList, FEndList: PActionLI;
     FIsPng: Boolean;
-    FCurrTime: Integer;
     FIndex: Integer;
-    FActionBuff: TBitmap;
     FUpdateActionList: TOnActionListChanged;
     FUpdateActionAfterDelete: TOnActionDelete;
     FUpdateOneAction: TOnActionChanged;
@@ -78,7 +75,6 @@ type
     property CurrX: Extended read FCurrCoordinatesX write FCurrCoordinatesX;
     property CurrY: Extended read FCurrCoordinatesY write FCurrCoordinatesY;
     property CurrAction: PActionLI read FCurrAction write FCurrAction;
-    property CurrTime: Integer read FCurrTime write FCurrTime;
     property ActionList[Index: Integer]: PActionLI read GetActionItem;
     property EndActionList: PActionLI read FEndList;
     property Angle: Integer read FAngle;
@@ -173,12 +169,6 @@ begin
   OnDblClick := ObjectImageDblClick;
   OnMouseDown := ObjectImageMouseDown;
 
-  Timer := TTimer.Create(AOwner);
-  Timer.Enabled := False;
-  Timer.OnTimer := TimerAction;
-
-  FActionBuff := TBitmap.Create;
-  FActionBuff.SetSize(TMainForm(AOwner).ClientWidth, TMainForm(AOwner).ClientHeight);
   FIsPng := IsPngExtension;
   new(FActionList);
   FEndList := FActionList;
@@ -241,7 +231,6 @@ begin
   end;
 
   FOriginPicture.Destroy;
-  Timer.Destroy;
 
   while FActionList <> nil do
   begin
@@ -527,86 +516,6 @@ end;
 procedure TObjectImage.SetUpdateOneAction(const Value: TOnActionChanged);
 begin
   FUpdateOneAction := Value;
-end;
-
-procedure TObjectImage.TimerAction(Sender: TObject);
-var
-  Tmp: PObjectLI;
-  TimeLeft: Integer;
-  IsEnd: Boolean;
-  XLeft, YLeft, TimeInc, PixelTime, R1X, R1Y, R2X, R2Y, Alpha, AlphaInc, NX, NY: Extended;
-begin
-  Inc(FCurrTime, Timer.Interval);
-  if CurrAction = nil then
-  begin
-    Timer.Enabled := False;
-    Tmp := (Parent as TMainForm).ObjectList;
-    IsEnd := True;
-    while Tmp <> nil do
-    begin
-      IsEnd := IsEnd and not Tmp^.ObjectImage.Timer.Enabled;
-      Tmp := Tmp^.Next;
-    end;
-    if IsEnd then
-      (Parent as TMainForm).CompleteAnimation;
-  end
-  else if CurrTime < CurrAction^.Info.TimeStart * 1000 then
-    Timer.Interval := CurrAction^.Info.TimeStart * 1000 - CurrTime
-  else if CurrTime = CurrAction^.Info.TimeStart * 1000 then
-  begin
-    FCurrCoordinatesX := FCurrAction^.Info.StartPoint.X;
-    FCurrCoordinatesY := FCurrAction^.Info.StartPoint.Y;
-  end
-  else if CurrTime >= CurrAction^.Info.TimeEnd * 1000 then
-    FCurrAction := CurrAction^.Next;
-  if (CurrAction <> nil) and (CurrTime >= CurrAction^.Info.TimeStart * 1000) then
-  begin
-    FActionBuff.Canvas.StretchDraw(Rect(0, 0, (Parent as TMainForm).ClientWidth, (Parent as TMainForm).ClientHeight),
-      BackMenuForm.BkPict.Graphic);
-    Tmp := (Parent as TMainForm).ObjectList;
-    TimeLeft := (CurrAction^.Info.TimeEnd * 1000 - CurrTime);
-    XLeft := CurrAction^.Info.EndPoint.X - FCurrCoordinatesX;
-    YLeft := CurrAction^.Info.EndPoint.Y - FCurrCoordinatesY;
-    TimeInc := 0;
-    if CurrAction^.Info.ActType = actLineMove then
-    begin
-      if (Abs(XLeft) <> 0) or (Abs(YLeft) <> 0) then
-      begin
-        PixelTime := TimeLeft / Max(Abs(XLeft), Abs(YLeft));
-        while TimeInc < 30 do
-          TimeInc := TimeInc + PixelTime;
-        TimeInc := Min(TimeInc, TimeLeft);
-        FCurrCoordinatesX := FCurrCoordinatesX + XLeft / TimeLeft * Round(TimeInc);
-        FCurrCoordinatesY := FCurrCoordinatesY + YLeft / TimeLeft * Round(TimeInc);
-      end;
-    end
-    else if CurrAction^.Info.ActType = actCircleMove then
-    begin
-      TimeInc := Min(30, TimeLeft);
-      with CurrAction^.Info do
-      begin
-        R1X := CircleCenterX - FCurrCoordinatesX;
-        R1Y := CircleCenterY - FCurrCoordinatesY;
-        R2X := CircleCenterX - EndPoint.X;
-        R2Y := CircleCenterY - EndPoint.Y;
-        Alpha := ArcCos((R1X * R2X + R1Y * R2Y) / (sqr(Radius)));
-        AlphaInc := Alpha / (TimeEnd * 1000 - FCurrTime) * TimeInc;
-        NX := CircleCenterX - (R1X * Cos(AlphaInc) + R1Y * Sin(AlphaInc));
-        NY := CircleCenterY - (-R1X * Sin(AlphaInc) + R1Y * Cos(AlphaInc));
-      end;
-      FCurrCoordinatesX := NX;
-      FCurrCoordinatesY := NY;
-    end;
-    Timer.Interval := Round(TimeInc);
-    while Tmp <> nil do
-    begin
-      FActionBuff.Canvas.Draw(Round(Tmp^.ObjectImage.FCurrCoordinatesX) - Tmp^.ObjectImage.Picture.Width div 2,
-        Round(Tmp^.ObjectImage.FCurrCoordinatesY) - Tmp^.ObjectImage.Picture.Height div 2,
-        Tmp^.ObjectImage.Picture.Graphic);
-      Tmp := Tmp^.Next;
-    end;
-    (Parent as TMainForm).Canvas.Draw(0, 0, FActionBuff);
-  end;
 end;
 
 procedure TObjectImage.ViewImage(Pict: TGraphic);

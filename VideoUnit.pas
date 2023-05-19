@@ -4,8 +4,10 @@ interface
 
 uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants,
-  System.Classes, Vcl.Graphics, IOUtils, Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.ExtCtrls, Vcl.StdCtrls,
-  Vcl.Imaging.pngimage, Vcl.Imaging.jpeg, BackMenuUnit, Vcl.ExtDlgs, Math, System.Actions, Vcl.ActnList, Vcl.Menus,
+  System.Classes, Vcl.Graphics, IOUtils, Vcl.Controls, Vcl.Forms, Vcl.Dialogs,
+  Vcl.ExtCtrls, Vcl.StdCtrls,
+  Vcl.Imaging.pngimage, Vcl.Imaging.jpeg, BackMenuUnit, Vcl.ExtDlgs, Math,
+  System.Actions, Vcl.ActnList, Vcl.Menus,
   StrUtils, Vcl.ComCtrls, MainUnit, vfw;
 
 type
@@ -44,22 +46,21 @@ type
     szName: array [0 .. 63] of char;
   end;
 
-function mmioStringToFOURCCA(sz: PChar; uFlags: DWORD): integer; stdcall; external 'winmm.dll';
+function mmioStringToFOURCCA(sz: PChar; uFlags: DWORD): integer; stdcall;
+  external 'winmm.dll';
 
-procedure CreateAviFile(FileName: string; ObjectList: PObjectLI; var BkImage: TBitMap; FramesPerSecond: integer);
+procedure CreateAviFile(FileName: string; ObjectList: PObjectLI;
+  var BkImage: TBitMap; FramesPerSecond: integer);
 
 implementation
 
-procedure CreateAviFile(FileName: string; ObjectList: PObjectLI; var BkImage: TBitMap; FramesPerSecond: integer);
+procedure CreateAviFile(FileName: string; ObjectList: PObjectLI;
+  var BkImage: TBitMap; FramesPerSecond: integer);
 var
-  Opts: AVI_COMPRESS_OPTIONS;
-  pOpts: Pointer;
   avifile: PAviFile;
-  avistream, avicompressedstream: PAviStream;
-  avistreaminfo: TAviStreamInfo;
-  avicompressoptions: TAviCompressOptions;
-  pFile, ps, psCompressed: DWORD;
-  strhdr: AVI_STREAM_INFO;
+  AVIStream, AVIComprStream: PAviStream;
+  AVIStreamInfo: TAviStreamInfo;
+  AVICompressInfo: TAviCompressOptions;
   InfoHeaderSize, ImageSize: Cardinal;
   biSizeImage, biHeight, biWidth: DWORD;
   MemBits: packed array of byte;
@@ -69,9 +70,10 @@ var
   CurrTime: integer;
 begin
   DeleteFile(FileName);
-  Fillchar(avicompressoptions, SizeOf(Opts), 0);
-  Fillchar(avistreaminfo, SizeOf(strhdr), 0);
-  avicompressoptions.fccHandler := mmioFOURCC('D', 'I', 'B', ' '); // Full frames Uncompressed
+  Fillchar(AVICompressInfo, SizeOf(TAviCompressOptions), 0);
+  Fillchar(AVIStreamInfo, SizeOf(TAviStreamInfo), 0);
+  AVICompressInfo.fccHandler := mmioFOURCC('D', 'I', 'B', ' ');
+  // Full frames Uncompressed
   AVIFileInit;
 
   if AVIFileOpenW(avifile, '123.avi', OF_CREATE, nil) = 0 then
@@ -84,26 +86,32 @@ begin
     SetLength(MemBits, ImageSize);
     GetDIB(BkImage.Handle, BkImage.Palette, MemBitMapInfo[0], MemBits[0]);
 
-    biSizeImage := MemBitMapInfo[20] + MemBitMapInfo[21] shl 8 + MemBitMapInfo[22] shl 16 + MemBitMapInfo[23] shl 24;
-    biHeight := MemBitMapInfo[4] + MemBitMapInfo[5] shl 8 + MemBitMapInfo[6] shl 16 + MemBitMapInfo[7] shl 24;
-    biWidth := MemBitMapInfo[8] + MemBitMapInfo[9] shl 8 + MemBitMapInfo[10] shl 16 + MemBitMapInfo[11] shl 24;
+    biSizeImage := MemBitMapInfo[20] + MemBitMapInfo[21] shl 8 + MemBitMapInfo
+      [22] shl 16 + MemBitMapInfo[23] shl 24;
+    biHeight := MemBitMapInfo[4] + MemBitMapInfo[5] shl 8 + MemBitMapInfo[6]
+      shl 16 + MemBitMapInfo[7] shl 24;
+    biWidth := MemBitMapInfo[8] + MemBitMapInfo[9] shl 8 + MemBitMapInfo[10]
+      shl 16 + MemBitMapInfo[11] shl 24;
 
-    avistreaminfo.fccType := streamtypeVIDEO; // stream type video
-    avistreaminfo.fccHandler := 0; // def AVI handler
-    avistreaminfo.dwScale := 1;
-    avistreaminfo.dwRate := FramesPerSecond; // fps 1 to 30
-    avistreaminfo.dwSuggestedBufferSize := biSizeImage; // size of 1 frame
-    SetRect(avistreaminfo.rcFrame, 0, 0, biWidth, biHeight);
+    AVIStreamInfo.fccType := streamtypeVIDEO; // stream type video
+    AVIStreamInfo.fccHandler := 0; // def AVI handler
+    AVIStreamInfo.dwScale := 1;
+    AVIStreamInfo.dwRate := FramesPerSecond; // fps 1 to 30
+    AVIStreamInfo.dwSuggestedBufferSize := biSizeImage; // size of 1 frame
+    SetRect(AVIStreamInfo.rcFrame, 0, 0, biWidth, biHeight);
 
-    if AVIFileCreateStream(avifile, avistream, @avistreaminfo) = 0 then
+    if AVIFileCreateStream(avifile, AVIStream, @AVIStreamInfo) = 0 then
     begin
-      if AVIMakeCompressedStream(avicompressedstream, avistream, @avicompressoptions, nil) = AVIERR_OK then
+      if AVIMakeCompressedStream(AVIComprStream, AVIStream,
+        @AVICompressInfo, nil) = AVIERR_OK then
       begin
-        if AVIStreamSetFormat(avicompressedstream, 0, @MemBitMapInfo[0], length(MemBitMapInfo)) = 0 then
+        if AVIStreamSetFormat(AVIComprStream, 0, @MemBitMapInfo[0],
+          length(MemBitMapInfo)) = 0 then
         begin
           CurrTime := 0;
           repeat
-            Buff.Canvas.StretchDraw(Rect(0, 0, BkImage.Width, BkImage.Height), BkImage);
+            Buff.Canvas.StretchDraw(Rect(0, 0, BkImage.Width,
+              BkImage.Height), BkImage);
 
             IsEnd := True;
             TMainForm.DrawFrame(ObjectList, Buff, IsEnd, CurrTime);
@@ -112,11 +120,12 @@ begin
             SetLength(MemBits, ImageSize);
             GetDIB(Buff.Handle, Buff.Palette, MemBitMapInfo[0], MemBits[0]);
 
-            biSizeImage := MemBitMapInfo[20] + MemBitMapInfo[21] shl 8 + MemBitMapInfo[22] shl 16 +
-              MemBitMapInfo[23] shl 24;
+            biSizeImage := MemBitMapInfo[20] + MemBitMapInfo[21] shl 8 +
+              MemBitMapInfo[22] shl 16 + MemBitMapInfo[23] shl 24;
 
-            if AVIStreamWrite(avicompressedstream, CurrTime div (1000 div FramesPerSecond), 1, @MemBits[0], biSizeImage,
-              AVIIF_KEYFRAME, 0, 0) <> 0 then
+            if AVIStreamWrite(AVIComprStream,
+              CurrTime div (1000 div FramesPerSecond), 1, @MemBits[0],
+              biSizeImage, AVIIF_KEYFRAME, 0, 0) <> 0 then
             begin
               ShowMessage('Error during Write AVI File');
               break;
@@ -126,8 +135,8 @@ begin
         end;
       end;
     end;
-    AVIStreamRelease(avicompressedstream);
-    AVIStreamRelease(avistream);
+    AVIStreamRelease(AVIComprStream);
+    AVIStreamRelease(AVIStream);
     AVIFileRelease(avifile);
     Buff.Destroy;
   end;

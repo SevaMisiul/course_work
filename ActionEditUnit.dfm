@@ -34,9 +34,9 @@ object ActionEditForm: TActionEditForm
   object lbEndTime: TLabel
     Left = 15
     Top = 135
-    Width = 69
+    Width = 102
     Height = 19
-    Caption = 'End time:'
+    Caption = 'End time(ms):'
     Font.Charset = DEFAULT_CHARSET
     Font.Color = clWindowText
     Font.Height = -16
@@ -47,9 +47,9 @@ object ActionEditForm: TActionEditForm
   object lbStartTime: TLabel
     Left = 15
     Top = 75
-    Width = 75
+    Width = 108
     Height = 19
-    Caption = 'Start time:'
+    Caption = 'Start time(ms):'
     Font.Charset = DEFAULT_CHARSET
     Font.Color = clWindowText
     Font.Height = -16
@@ -174,6 +174,7 @@ object ActionEditForm: TActionEditForm
     Font.Height = -16
     Font.Name = 'Tahoma'
     Font.Style = []
+    MaxLength = 10
     NumbersOnly = True
     ParentFont = False
     TabOrder = 8
@@ -218,6 +219,7 @@ object ActionEditForm: TActionEditForm
     Font.Height = -16
     Font.Name = 'Tahoma'
     Font.Style = []
+    MaxLength = 10
     NumbersOnly = True
     ParentFont = False
     TabOrder = 1
@@ -232,6 +234,7 @@ object ActionEditForm: TActionEditForm
     Font.Height = -16
     Font.Name = 'Tahoma'
     Font.Style = []
+    MaxLength = 10
     NumbersOnly = True
     ParentFont = False
     TabOrder = 2
@@ -246,6 +249,7 @@ object ActionEditForm: TActionEditForm
     Font.Height = -16
     Font.Name = 'Tahoma'
     Font.Style = []
+    MaxLength = 10
     NumbersOnly = True
     ParentFont = False
     TabOrder = 3
@@ -260,6 +264,7 @@ object ActionEditForm: TActionEditForm
     Font.Height = -16
     Font.Name = 'Tahoma'
     Font.Style = []
+    MaxLength = 10
     NumbersOnly = True
     ParentFont = False
     TabOrder = 4
@@ -274,6 +279,7 @@ object ActionEditForm: TActionEditForm
     Font.Height = -16
     Font.Name = 'Tahoma'
     Font.Style = []
+    MaxLength = 10
     NumbersOnly = True
     ParentFont = False
     TabOrder = 5
@@ -288,6 +294,7 @@ object ActionEditForm: TActionEditForm
     Font.Height = -16
     Font.Name = 'Tahoma'
     Font.Style = []
+    MaxLength = 10
     NumbersOnly = True
     ParentFont = False
     TabOrder = 6

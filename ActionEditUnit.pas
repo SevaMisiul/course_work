@@ -192,6 +192,7 @@ begin
     end;
     FParentForm.Show;
     Self.Show;
+    FIsWaitingClick := False;
   end;
 end;
 
@@ -238,7 +239,7 @@ begin
   end
   else
   begin
-    edtTimeStart.Text := '';
+    edtTimeStart.Text := '0';
     edtStartPointX.Text := IntToStr(FObj.Left + FObj.Width div 2);
     edtStartPointY.Text := IntToStr(FObj.Top + FObj.Height div 2);
   end;

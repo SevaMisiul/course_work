@@ -2125,6 +2125,15 @@ object MainForm: TMainForm
     TabStop = False
     OnClick = btnCreateAnimationClick
   end
+  object Button1: TButton
+    Left = 1032
+    Top = 328
+    Width = 75
+    Height = 25
+    Caption = 'Button1'
+    TabOrder = 2
+    OnClick = Button1Click
+  end
   object OpenObjectIconDialog: TOpenPictureDialog
     Left = 96
     Top = 80

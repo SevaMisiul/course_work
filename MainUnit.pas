@@ -6,7 +6,7 @@ uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants,
   System.Classes, Vcl.Graphics, IOUtils, Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.ExtCtrls, Vcl.StdCtrls,
   Vcl.Imaging.pngimage, Vcl.Imaging.jpeg, BackMenuUnit, Vcl.ExtDlgs, Math, System.Actions, Vcl.ActnList, Vcl.Menus,
-  ObjectUnit, StrUtils, ActionEditUnit;
+  ObjectUnit, StrUtils, ActionEditUnit, Vcl.ComCtrls;
 
 type
   TObjectIcon = class(TImage)
@@ -41,6 +41,7 @@ type
     RunAnimation1: TMenuItem;
     alMenuActions: TActionList;
     actRunAnimation: TAction;
+    Button1: TButton;
     procedure btnCreateAnimationClick(Sender: TObject);
     procedure FormPaint(Sender: TObject);
     procedure AddImgClick(Sender: TObject);
@@ -54,6 +55,7 @@ type
     procedure imgPanelCloseClick(Sender: TObject);
     procedure actRunAnimationExecute(Sender: TObject);
     procedure Animation(Sender: TObject);
+    procedure Button1Click(Sender: TObject);
   private
     FLastUpdate, FRunTime: Cardinal;
     FObjectList: PObjectLI;
@@ -68,6 +70,7 @@ type
     destructor Destroy; override;
     procedure AddObject(Obj: TObjectImage);
     procedure CompleteAnimation;
+    class procedure DrawFrame(Tmp: PObjectLI; Buff: TBitMap; var IsEnd: Boolean; CurrTime: Cardinal);
     { properties }
     property ObjectList: PObjectLI read FObjectList write FObjectList;
     property ObjectPanelTop: Integer read FObjectPanelTop write FObjectPanelTop;
@@ -79,6 +82,9 @@ var
 implementation
 
 {$R *.dfm}
+
+uses
+  VideoUnit;
 
 procedure TMainForm.actRunAnimationExecute(Sender: TObject);
 var
@@ -146,7 +152,6 @@ var
   Tmp: PObjectLI;
   CurrTime: Cardinal;
   IsEnd: Boolean;
-  PixelTime, R1X, R1Y, R2X, R2Y, Alpha, CurrAlpha, NX, NY: Extended;
   TmpBuff: TBitMap;
 begin
   CurrTime := GetTickCount - FRunTime;
@@ -156,46 +161,12 @@ begin
   TmpBuff.Canvas.StretchDraw(Rect(0, 0, ClientWidth, ClientHeight), BackMenuForm.BkPict.Graphic);
   Tmp := ObjectList;
   IsEnd := True;
-  while Tmp <> nil do
-    with Tmp^.ObjectImage do
-    begin
-      IsEnd := IsEnd and (CurrAction = nil);
-      if (CurrAction <> nil) and (CurrTime >= CurrAction^.Info.TimeEnd * 1000) then
-        CurrAction := CurrAction^.Next;
-      if (CurrAction <> nil) and (CurrTime >= CurrAction^.Info.TimeStart * 1000) then
-      begin
-        if CurrAction^.Info.ActType = actLineMove then
-          with CurrAction^.Info do
-          begin
-            CurrX := StartPoint.X + (EndPoint.X - StartPoint.X) / ((TimeEnd - TimeStart) * 1000) *
-              (CurrTime - TimeStart);
-            CurrY := StartPoint.Y + (EndPoint.Y - StartPoint.Y) / ((TimeEnd - TimeStart) * 1000) *
-              (CurrTime - TimeStart);
-          end
-        else if CurrAction^.Info.ActType = actCircleMove then
-        begin
-          with CurrAction^.Info do
-          begin
-            R1X := CircleCenterX - StartPoint.X;
-            R1Y := CircleCenterY - StartPoint.Y;
-            R2X := CircleCenterX - EndPoint.X;
-            R2Y := CircleCenterY - EndPoint.Y;
-            Alpha := ArcCos((R1X * R2X + R1Y * R2Y) / (sqr(Radius)));
-            CurrAlpha := Alpha / ((TimeEnd - TimeStart) * 1000) * (CurrTime - TimeStart);
-            NX := CircleCenterX - (R1X * Cos(CurrAlpha) + R1Y * Sin(CurrAlpha));
-            NY := CircleCenterY - (-R1X * Sin(CurrAlpha) + R1Y * Cos(CurrAlpha));
-          end;
-          CurrX := NX;
-          CurrY := NY;
-        end;
-        TmpBuff.Canvas.Draw(Round(CurrX) - Picture.Width div 2, Round(CurrY) - Picture.Height div 2, Picture.Graphic);
-      end;
-      Tmp := Tmp^.Next;
-    end;
+  TMainForm.DrawFrame(Tmp, TmpBuff, IsEnd, CurrTime);
   Canvas.Draw(0, 0, TmpBuff);
   if IsEnd then
     CompleteAnimation;
   FLastUpdate := CurrTime;
+  TmpBuff.Destroy;
   Sleep(0);
   Invalidate;
 end;
@@ -211,6 +182,29 @@ begin
     imgPanelOpen.Visible := True;
     imgPanelOpen.Top := ClientHeight div 2 - imgPanelOpen.Height;
   end;
+end;
+
+procedure TMainForm.Button1Click(Sender: TObject);
+var
+  bmp: TBitMap;
+  Tmp: PObjectLI;
+begin
+  bmp := TBitMap.Create;
+  bmp.SetSize(ClientWidth, ClientHeight);
+  bmp.Canvas.StretchDraw(Rect(0, 0, ClientWidth, ClientHeight), BackMenuForm.BkPict.Graphic);
+  Tmp := ObjectList;
+  while Tmp <> nil do
+  begin
+    with Tmp^.ObjectImage do
+    begin
+      CurrX := Left + Width div 2;
+      CurrY := Top + Height div 2;
+      if ActionList[0] <> nil then
+        CurrAction := ActionList[0];
+    end;
+    Tmp := Tmp^.Next;
+  end;
+  CreateAviFile('123.avi', ObjectList, bmp, 60);
 end;
 
 procedure TMainForm.CompleteAnimation;
@@ -240,6 +234,46 @@ begin
   end;
 
   inherited Destroy;
+end;
+
+class procedure TMainForm.DrawFrame(Tmp: PObjectLI; Buff: TBitMap; var IsEnd: Boolean; CurrTime: Cardinal);
+var
+  PixelTime, R1X, R1Y, R2X, R2Y, Alpha, CurrAlpha, NX, NY: Extended;
+begin
+  while Tmp <> nil do
+    with Tmp^.ObjectImage do
+    begin
+      IsEnd := IsEnd and (CurrAction = nil);
+      if (CurrAction <> nil) and (CurrTime >= CurrAction^.Info.TimeEnd) then
+        CurrAction := CurrAction^.Next;
+      if (CurrAction <> nil) and (CurrTime >= CurrAction^.Info.TimeStart) then
+      begin
+        if CurrAction^.Info.ActType = actLineMove then
+          with CurrAction^.Info do
+          begin
+            CurrX := StartPoint.X + (EndPoint.X - StartPoint.X) / (TimeEnd - TimeStart) * (CurrTime - TimeStart);
+            CurrY := StartPoint.Y + (EndPoint.Y - StartPoint.Y) / (TimeEnd - TimeStart) * (CurrTime - TimeStart);
+          end
+        else if CurrAction^.Info.ActType = actCircleMove then
+        begin
+          with CurrAction^.Info do
+          begin
+            R1X := CircleCenterX - StartPoint.X;
+            R1Y := CircleCenterY - StartPoint.Y;
+            R2X := CircleCenterX - EndPoint.X;
+            R2Y := CircleCenterY - EndPoint.Y;
+            Alpha := ArcCos((R1X * R2X + R1Y * R2Y) / (sqr(Radius)));
+            CurrAlpha := Alpha / (TimeEnd - TimeStart) * (CurrTime - TimeStart);
+            NX := CircleCenterX - (R1X * Cos(CurrAlpha) + R1Y * Sin(CurrAlpha));
+            NY := CircleCenterY - (-R1X * Sin(CurrAlpha) + R1Y * Cos(CurrAlpha));
+          end;
+          CurrX := NX;
+          CurrY := NY;
+        end;
+      end;
+      Buff.Canvas.Draw(Round(CurrX) - Picture.Width div 2, Round(CurrY) - Picture.Height div 2, Picture.Graphic);
+      Tmp := Tmp^.Next;
+    end;
 end;
 
 procedure TMainForm.FormClick(Sender: TObject);

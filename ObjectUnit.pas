@@ -39,7 +39,6 @@ type
   TOnActionChanged = procedure(Act: TACtionInfo) of object;
 
   TObjectImage = class(TImage)
-    Timer: TTimer;
     procedure ObjectImageDblClick(Sender: TObject);
     procedure ObjectImageMouseDown(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
   private

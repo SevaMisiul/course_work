@@ -76,7 +76,7 @@ begin
   // Full frames Uncompressed
   AVIFileInit;
 
-  if AVIFileOpenW(avifile, '123.avi', OF_CREATE, nil) = 0 then
+  if AVIFileOpenW(avifile, '123.mpg', OF_CREATE, nil) = 0 then
   begin
     Buff := TBitMap.Create;
     Buff.SetSize(BkImage.Width, BkImage.Height);

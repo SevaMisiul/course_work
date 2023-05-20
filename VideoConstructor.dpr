@@ -10,16 +10,17 @@ uses
   ActionEditUnit in 'ActionEditUnit.pas' {ActionEditForm},
   ObjectUnit in 'ObjectUnit.pas',
   VideoUnit in 'VideoUnit.pas',
-  vfw in 'vfw.pas';
+  vfw in 'vfw.pas',
+  MPEGFunctions in 'MPEGFunctions.pas';
 
 {$R *.res}
 
 begin
   Application.Initialize;
   Application.MainFormOnTaskbar := True;
-  AApplication.CreateForm(TMainForm, MainForm);
+  Application.CreateForm(TMainForm, MainForm);
   Application.CreateForm(TBackMenuForm, BackMenuForm);
   Application.CreateForm(TObjectOptionsForm, ObjectOptionsForm);
   Application.CreateForm(TActionEditForm, ActionEditForm);
-  pplication.Run;
+  Application.Run;
 end.

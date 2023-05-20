@@ -84,7 +84,7 @@ implementation
 {$R *.dfm}
 
 uses
-  VideoUnit;
+  MPEGFunctions;
 
 procedure TMainForm.actRunAnimationExecute(Sender: TObject);
 var
@@ -188,15 +188,18 @@ procedure TMainForm.Button1Click(Sender: TObject);
 var
   bmp: TBitMap;
   Tmp: PObjectLI;
+  Duration: Integer;
 begin
   bmp := TBitMap.Create;
   bmp.SetSize(ClientWidth, ClientHeight);
   bmp.Canvas.StretchDraw(Rect(0, 0, ClientWidth, ClientHeight), BackMenuForm.BkPict.Graphic);
   Tmp := ObjectList;
+  Duration := 0;
   while Tmp <> nil do
   begin
     with Tmp^.ObjectImage do
     begin
+      Duration := max(Duration, EndActionList^.Info.TimeEnd);
       CurrX := Left + Width div 2;
       CurrY := Top + Height div 2;
       if ActionList[0] <> nil then
@@ -204,7 +207,7 @@ begin
     end;
     Tmp := Tmp^.Next;
   end;
-  CreateAviFile('123.avi', ObjectList, bmp, 60);
+  Main('123.mpg', bmp.Width, bmp.Height, 60, Duration div 1000, bmp, ObjectList);
 end;
 
 procedure TMainForm.CompleteAnimation;

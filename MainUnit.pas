@@ -6,7 +6,7 @@ uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants,
   System.Classes, Vcl.Graphics, IOUtils, Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.ExtCtrls, Vcl.StdCtrls,
   Vcl.Imaging.pngimage, Vcl.Imaging.jpeg, BackMenuUnit, Vcl.ExtDlgs, Math, System.Actions, Vcl.ActnList, Vcl.Menus,
-  ObjectUnit, StrUtils, ActionEditUnit, Vcl.ComCtrls;
+  ObjectUnit, StrUtils, ActionEditUnit, Vcl.ComCtrls, System.ImageList, Vcl.ImgList;
 
 type
   TObjectIcon = class(TImage)
@@ -41,7 +41,14 @@ type
     RunAnimation1: TMenuItem;
     alMenuActions: TActionList;
     actRunAnimation: TAction;
-    Button1: TButton;
+    SaveVideoDialog: TSaveDialog;
+    File1: TMenuItem;
+    actSaveVideoAs: TAction;
+    Savevideo1: TMenuItem;
+    Run1: TMenuItem;
+    actSaveVideo: TAction;
+    Savevideo2: TMenuItem;
+    imglIcons: TImageList;
     procedure btnCreateAnimationClick(Sender: TObject);
     procedure FormPaint(Sender: TObject);
     procedure AddImgClick(Sender: TObject);
@@ -55,8 +62,10 @@ type
     procedure imgPanelCloseClick(Sender: TObject);
     procedure actRunAnimationExecute(Sender: TObject);
     procedure Animation(Sender: TObject);
-    procedure Button1Click(Sender: TObject);
+    procedure actSaveVideoAsExecute(Sender: TObject);
+    procedure actSaveVideoExecute(Sender: TObject);
   private
+    FIsFirstSave: Boolean;
     FLastUpdate, FRunTime: Cardinal;
     FObjectList: PObjectLI;
     FSelectedPicture: TPicture;
@@ -66,15 +75,19 @@ type
     FLastClick: TPoint;
     FObjectFileNames: System.TArray<string>;
     procedure SwitchPanel;
+    procedure PrepareSaveVideo(var bmp: TBitMap; var Duration: Integer);
   public
     destructor Destroy; override;
     procedure AddObject(Obj: TObjectImage);
     procedure CompleteAnimation;
-    class procedure DrawFrame(Tmp: PObjectLI; Buff: TBitMap; var IsEnd: Boolean; CurrTime: Cardinal);
+    class procedure DrawFrame(Tmp: PObjectLI; Buff: TBitMap; var IsEnd: Boolean; CurrTime: Single);
     { properties }
     property ObjectList: PObjectLI read FObjectList write FObjectList;
     property ObjectPanelTop: Integer read FObjectPanelTop write FObjectPanelTop;
   end;
+
+const
+  VideoExtensions: array [1 .. 2] of string = ('*.mp4', '*.avi');
 
 var
   MainForm: TMainForm;
@@ -84,7 +97,7 @@ implementation
 {$R *.dfm}
 
 uses
-  MPEGFunctions;
+  VideoUnit;
 
 procedure TMainForm.actRunAnimationExecute(Sender: TObject);
 var
@@ -111,6 +124,51 @@ begin
   FRunTime := GetTickCount;
   FLastUpdate := 0;
   Self.Invalidate;
+end;
+
+procedure TMainForm.actSaveVideoAsExecute(Sender: TObject);
+var
+  bmp: TBitMap;
+  Tmp: PObjectLI;
+  Duration: Integer;
+  btnSelected: Integer;
+begin
+  PrepareSaveVideo(bmp, Duration);
+  btnSelected := mrYes;
+
+  if SaveVideoDialog.Execute then
+  begin
+    if FileExists(SaveVideoDialog.FileName) then
+      btnSelected := MessageDlg('File already exists. Overwrite it?', mtConfirmation, [mbYes, mbNo], 0);
+    if btnSelected = mrYes then
+    begin
+      CreateVideo(SaveVideoDialog.FileName, bmp.Width, bmp.Height, 60, Duration div 1000, bmp, ObjectList);
+      FIsFirstSave := False;
+    end;
+  end;
+  bmp.Destroy;
+end;
+
+procedure TMainForm.actSaveVideoExecute(Sender: TObject);
+var
+  bmp: TBitMap;
+  Tmp: PObjectLI;
+  Duration: Integer;
+  btnSelected: Integer;
+begin
+  PrepareSaveVideo(bmp, Duration);
+  btnSelected := mrYes;
+
+  if FIsFirstSave then
+    actSaveVideoAsExecute(Sender)
+  else
+  begin
+    if FileExists(SaveVideoDialog.FileName) then
+      btnSelected := MessageDlg('File already exists. Overwrite it?', mtConfirmation, [mbYes, mbNo], 0);
+    if btnSelected = mrYes then
+      CreateVideo(SaveVideoDialog.FileName, bmp.Width, bmp.Height, 60, Duration div 1000, bmp, ObjectList);
+  end;
+  bmp.Destroy;
 end;
 
 procedure TMainForm.AddImgClick(Sender: TObject);
@@ -155,7 +213,6 @@ var
   TmpBuff: TBitMap;
 begin
   CurrTime := GetTickCount - FRunTime;
-
   TmpBuff := TBitMap.Create;
   TmpBuff.SetSize(ClientWidth, ClientHeight);
   TmpBuff.Canvas.StretchDraw(Rect(0, 0, ClientWidth, ClientHeight), BackMenuForm.BkPict.Graphic);
@@ -182,32 +239,6 @@ begin
     imgPanelOpen.Visible := True;
     imgPanelOpen.Top := ClientHeight div 2 - imgPanelOpen.Height;
   end;
-end;
-
-procedure TMainForm.Button1Click(Sender: TObject);
-var
-  bmp: TBitMap;
-  Tmp: PObjectLI;
-  Duration: Integer;
-begin
-  bmp := TBitMap.Create;
-  bmp.SetSize(ClientWidth, ClientHeight);
-  bmp.Canvas.StretchDraw(Rect(0, 0, ClientWidth, ClientHeight), BackMenuForm.BkPict.Graphic);
-  Tmp := ObjectList;
-  Duration := 0;
-  while Tmp <> nil do
-  begin
-    with Tmp^.ObjectImage do
-    begin
-      Duration := max(Duration, EndActionList^.Info.TimeEnd);
-      CurrX := Left + Width div 2;
-      CurrY := Top + Height div 2;
-      if ActionList[0] <> nil then
-        CurrAction := ActionList[0];
-    end;
-    Tmp := Tmp^.Next;
-  end;
-  Main('123.mpg', bmp.Width, bmp.Height, 60, Duration div 1000, bmp, ObjectList);
 end;
 
 procedure TMainForm.CompleteAnimation;
@@ -239,44 +270,54 @@ begin
   inherited Destroy;
 end;
 
-class procedure TMainForm.DrawFrame(Tmp: PObjectLI; Buff: TBitMap; var IsEnd: Boolean; CurrTime: Cardinal);
+class procedure TMainForm.DrawFrame(Tmp: PObjectLI; Buff: TBitMap; var IsEnd: Boolean; CurrTime: Single);
 var
-  PixelTime, R1X, R1Y, R2X, R2Y, Alpha, CurrAlpha, NX, NY: Extended;
+  PixelTime, R1X, R1Y, R2X, R2Y, Alpha, CurrAlpha, NX, NY, TimeRatio: Extended;
+  dltH, dltW: Integer;
+  TmpPict: TPicture;
 begin
+  TmpPict := TPicture.Create;
   while Tmp <> nil do
-    with Tmp^.ObjectImage do
+    with Tmp^.ObjectImage, CurrAction^.Info do
     begin
-      IsEnd := IsEnd and (CurrAction = nil);
-      if (CurrAction <> nil) and (CurrTime >= CurrAction^.Info.TimeEnd) then
+      TmpPict.Assign(OriginPicture);
+      if (CurrAction <> nil) and (CurrTime >= TimeEnd) then
         CurrAction := CurrAction^.Next;
-      if (CurrAction <> nil) and (CurrTime >= CurrAction^.Info.TimeStart) then
+      IsEnd := IsEnd and (CurrAction = nil);
+      if (CurrAction <> nil) and (CurrTime >= TimeStart) then
       begin
-        if CurrAction^.Info.ActType = actLineMove then
-          with CurrAction^.Info do
-          begin
-            CurrX := StartPoint.X + (EndPoint.X - StartPoint.X) / (TimeEnd - TimeStart) * (CurrTime - TimeStart);
-            CurrY := StartPoint.Y + (EndPoint.Y - StartPoint.Y) / (TimeEnd - TimeStart) * (CurrTime - TimeStart);
-          end
+        TimeRatio := (CurrTime - TimeStart) / (TimeEnd - TimeStart);
+        if ActType = actLineMove then
+        begin
+          CurrX := StartPoint.X + (EndPoint.X - StartPoint.X) * TimeRatio;
+          CurrY := StartPoint.Y + (EndPoint.Y - StartPoint.Y) * TimeRatio;
+        end
         else if CurrAction^.Info.ActType = actCircleMove then
         begin
-          with CurrAction^.Info do
-          begin
-            R1X := CircleCenterX - StartPoint.X;
-            R1Y := CircleCenterY - StartPoint.Y;
-            R2X := CircleCenterX - EndPoint.X;
-            R2Y := CircleCenterY - EndPoint.Y;
-            Alpha := ArcCos((R1X * R2X + R1Y * R2Y) / (sqr(Radius)));
-            CurrAlpha := Alpha / (TimeEnd - TimeStart) * (CurrTime - TimeStart);
-            NX := CircleCenterX - (R1X * Cos(CurrAlpha) + R1Y * Sin(CurrAlpha));
-            NY := CircleCenterY - (-R1X * Sin(CurrAlpha) + R1Y * Cos(CurrAlpha));
-          end;
+          R1X := CircleCenterX - StartPoint.X;
+          R1Y := CircleCenterY - StartPoint.Y;
+          R2X := CircleCenterX - EndPoint.X;
+          R2Y := CircleCenterY - EndPoint.Y;
+          Alpha := ArcCos((R1X * R2X + R1Y * R2Y) / (sqr(Radius)));
+          CurrAlpha := Alpha * TimeRatio;
+          NX := CircleCenterX - (R1X * Cos(CurrAlpha) + R1Y * Sin(CurrAlpha));
+          NY := CircleCenterY - (-R1X * Sin(CurrAlpha) + R1Y * Cos(CurrAlpha));
           CurrX := NX;
           CurrY := NY;
         end;
+        if (StartHeight <> EndHeight) or (StartWidth <> EndWidth) then
+        begin
+          dltH := Round((EndHeight - StartHeight) * TimeRatio);
+          dltW := Round((EndWidth - StartWidth) * TimeRatio);
+          Resize(TmpPict, StartWidth + dltW, StartHeight + dltH);
+        end;
+        if StartAngle <> EndAngle then
+          Rotate(TmpPict, StartAngle + Round((EndAngle - StartAngle) * TimeRatio));
       end;
-      Buff.Canvas.Draw(Round(CurrX) - Picture.Width div 2, Round(CurrY) - Picture.Height div 2, Picture.Graphic);
+      Buff.Canvas.Draw(Round(CurrX) - TmpPict.Width div 2, Round(CurrY) - TmpPict.Height div 2, TmpPict.Graphic);
       Tmp := Tmp^.Next;
     end;
+  TmpPict.Destroy;
 end;
 
 procedure TMainForm.FormClick(Sender: TObject);
@@ -294,13 +335,26 @@ end;
 
 procedure TMainForm.FormCreate(Sender: TObject);
 var
-  Path: string;
+  Path, Extn: string;
   Tmp: TImage;
 begin
+  btnCreateAnimation.Top := (Screen.Height - btnCreateAnimation.Height) div 2;
+  btnCreateAnimation.Left := (Screen.Width - btnCreateAnimation.Width) div 2;
+
+  FIsFirstSave := True;
   DoubleBuffered := True;
   CreateDir('backgrounds');
   CreateDir('Icons');
   CreateDir('objects');
+
+  SaveVideoDialog.Filter := '';
+  for Extn in VideoExtensions do
+    SaveVideoDialog.Filter := SaveVideoDialog.Filter + 'Video ' + Copy(Extn, 3) + '|' + Extn + '|';
+  SaveVideoDialog.Filter := SaveVideoDialog.Filter + 'Any file|*.*';
+  SaveVideoDialog.FileName := 'Video';
+  SaveVideoDialog.DefaultExt := '.mp4';
+  SaveVideoDialog.FilterIndex := 1;
+
   FObjectFileNames := TDirectory.GetFiles('objects');
   ObjectPanelTop := 20;
   FWaitingClickToCreate := False;
@@ -352,6 +406,29 @@ end;
 procedure TMainForm.imgPanelOpenClick(Sender: TObject);
 begin
   SwitchPanel;
+end;
+
+procedure TMainForm.PrepareSaveVideo(var bmp: TBitMap; var Duration: Integer);
+var
+  Tmp: PObjectLI;
+begin
+  bmp := TBitMap.Create;
+  bmp.SetSize(ClientWidth, ClientHeight);
+  bmp.Canvas.StretchDraw(Rect(0, 0, ClientWidth, ClientHeight), BackMenuForm.BkPict.Graphic);
+  Tmp := ObjectList;
+  Duration := 0;
+  while Tmp <> nil do
+  begin
+    with Tmp^.ObjectImage do
+    begin
+      Duration := max(Duration, EndActionList^.Info.TimeEnd);
+      CurrX := Left + Width div 2;
+      CurrY := Top + Height div 2;
+      if ActionList[0] <> nil then
+        CurrAction := ActionList[0];
+    end;
+    Tmp := Tmp^.Next;
+  end;
 end;
 
 procedure TMainForm.scrlbObjectsMouseWheelDown(Sender: TObject; Shift: TShiftState; MousePos: TPoint;

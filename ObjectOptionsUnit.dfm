@@ -24,7 +24,7 @@ object ObjectOptionsForm: TObjectOptionsForm
     OnPaint = pbPicturePaint
   end
   object lbHeight: TLabel
-    Left = 410
+    Left = 265
     Top = 60
     Width = 52
     Height = 19
@@ -37,7 +37,7 @@ object ObjectOptionsForm: TObjectOptionsForm
     ParentFont = False
   end
   object lbWidth: TLabel
-    Left = 265
+    Left = 410
     Top = 60
     Width = 47
     Height = 19
@@ -102,7 +102,7 @@ object ObjectOptionsForm: TObjectOptionsForm
     ParentFont = False
   end
   object edtHeight: TEdit
-    Left = 410
+    Left = 265
     Top = 80
     Width = 120
     Height = 27
@@ -193,6 +193,7 @@ object ObjectOptionsForm: TObjectOptionsForm
     Width = 100
     Height = 33
     Caption = 'OK'
+    Default = True
     Font.Charset = DEFAULT_CHARSET
     Font.Color = clWindowText
     Font.Height = -16
@@ -218,7 +219,7 @@ object ObjectOptionsForm: TObjectOptionsForm
     TabOrder = 8
   end
   object edtWidth: TEdit
-    Left = 265
+    Left = 410
     Top = 80
     Width = 120
     Height = 27
@@ -305,8 +306,8 @@ object ObjectOptionsForm: TObjectOptionsForm
   end
   object actList: TActionList
     OnUpdate = actListUpdate
-    Left = 32
-    Top = 312
+    Left = 48
+    Top = 328
     object actDeleteAction: TAction
       Caption = 'Delete action'
       ShortCut = 8238

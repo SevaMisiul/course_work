@@ -17,7 +17,8 @@ type
 
   TACtionInfo = record
     ActType: TActionType;
-    TimeStart, TimeEnd: Integer;
+    TimeStart, TimeEnd, StartAngle, EndAngle, StartHeight, StartWidth, EndHeight, EndWidth: Integer;
+    IsPropStart, IsPropEnd: Boolean;
     StartPoint, EndPoint, ThirdPoint: TPoint;
     CircleCenterX, CircleCenterY, Radius: Extended;
   end;
@@ -27,6 +28,10 @@ type
   TActionLI = record
     Info: TACtionInfo;
     Next: PActionLI;
+  end;
+
+  TRGB = record
+    R, G, B: Byte;
   end;
 
   TPixelArray = array [0 .. 32768] of TRGBTriple;
@@ -53,6 +58,7 @@ type
     FUpdateActionList: TOnActionListChanged;
     FUpdateActionAfterDelete: TOnActionDelete;
     FUpdateOneAction: TOnActionChanged;
+    FExplicitH, FExplicitW: Integer;
     procedure SetUpdateActionList(const Value: TOnActionListChanged);
     procedure SetUpdateAfterDelete(const Value: TOnActionDelete);
     procedure SetUpdateOneAction(const Value: TOnActionChanged);
@@ -60,8 +66,8 @@ type
   public
     constructor Create(AOwner: TComponent; X: Integer; Y: Integer; Pict: TPicture; IsPngExtension: Boolean);
     destructor Destroy;
-    procedure Rotate(Angle: Integer);
-    procedure Resize(NewHeight, NewWidth: Integer; IsProportional: Boolean);
+    procedure Rotate(var DestPicture: TPicture; Angle: Integer);
+    procedure Resize(var DestPicture: TPicture; NewWidth, NewHeight: Integer);
     procedure ViewImage(Pict: TGraphic);
     procedure AddAction(Act: TACtionInfo);
     procedure SetAction(P: PActionLI; Act: TACtionInfo);
@@ -71,6 +77,8 @@ type
     property UpdateActionAfterDelete: TOnActionDelete read FUpdateActionAfterDelete write SetUpdateAfterDelete;
     property UpdateActionList: TOnActionListChanged read FUpdateActionList write SetUpdateActionList;
 
+    property ExplicitH: Integer read FExplicitH;
+    property ExplicitW: Integer read FExplicitW;
     property CurrX: Extended read FCurrCoordinatesX write FCurrCoordinatesX;
     property CurrY: Extended read FCurrCoordinatesY write FCurrCoordinatesY;
     property CurrAction: PActionLI read FCurrAction write FCurrAction;
@@ -162,6 +170,8 @@ begin
   Picture.Assign(Pict);
   Height := Picture.Graphic.Height;
   Width := Picture.Graphic.Width;
+  FExplicitH := Height;
+  FExplicitW := Width;
   Top := Y - Height div 2;
   Left := X - Width div 2;
 
@@ -258,24 +268,38 @@ procedure TObjectImage.ObjectImageDblClick(Sender: TObject);
 var
   Res: TModalResult;
   H, W, L, T, AngleP: Integer;
-  IsProportional: Boolean;
+  IsProportional, IsChanged: Boolean;
+  TmpPict: TPicture;
 begin
-  H := OriginPicture.Height;
-  W := OriginPicture.Width;
+  H := FExplicitH;
+  W := FExplicitW;
   L := Left;
   T := Top;
   AngleP := Self.Angle;
   IsProportional := Self.Proportional;
-  Res := ObjectOptionsForm.ShowForEdit(Self, H, W, L, T, AngleP, IsProportional);
+  Res := ObjectOptionsForm.ShowForEdit(Self, FExplicitH, FExplicitW, L, T, AngleP, IsProportional);
 
   if Res = mrAbort then
     Self.Destroy
   else if Res = mrOk then
   begin
-    if (H <> OriginPicture.Height) or (W <> OriginPicture.Width) then
-      Resize(H, W, IsProportional);
-    if (AngleP <> Self.Angle) then
-      Rotate(AngleP);
+    IsChanged := False;
+    TmpPict := TPicture.Create;
+    TmpPict.Assign(OriginPicture);
+    if (H <> FExplicitH) or (W <> FExplicitW) or (AngleP <> Self.Angle) then
+    begin
+      IsChanged := True;
+      Resize(TmpPict, FExplicitW, FExplicitH);
+      ViewImage(TmpPict.Graphic);
+    end;
+    if IsChanged or (AngleP <> Self.Angle) then
+    begin
+      Rotate(TmpPict, AngleP);
+      ViewImage(TmpPict.Graphic);
+    end;
+    TmpPict.Destroy;
+    FAngle := AngleP;
+    Proportional := IsProportional;
     Left := L - Width div 2;
     Top := T - Height div 2;
   end;
@@ -288,36 +312,39 @@ begin
     TControl(Sender).BeginDrag(False);
 end;
 
-procedure TObjectImage.Resize(NewHeight, NewWidth: Integer; IsProportional: Boolean);
+procedure TObjectImage.Resize(var DestPicture: TPicture; NewWidth, NewHeight: Integer);
 var
-  RowSource, RowDest: PPixelArray;
-  Y, X, I, DestColorType: Integer;
-  SourcePoint, SourceCenter, DestCenter: TPoint;
-  SourcePict, DestPict: TPNGObject;
-  SourceBmp, DestBmp: TBitmap;
-  DestAlpha, SourceAlpha: PByteArray;
+  ScaleX, ScaleY: Single;
+  sfrom_y, sfrom_x: Single;
+  ifrom_y, ifrom_x: Integer;
+  to_y, to_x: Integer;
+  weight_x, weight_y: array [0 .. 1] of Single;
+  weight: Single;
+  new_red, new_green: Integer;
+  new_blue, new_alpha: Integer;
+  new_colortype: Integer;
+  total_red, total_green: Single;
+  total_blue, total_alpha: Single;
   IsAlpha: Boolean;
-  ScaleX, ScaleY: Real;
+  ix, iy: Integer;
+  DestPict, SourcePict: TPNGObject;
+  DestBmp, SourceBmp: TBitMap;
+  sli, slo: PRGBLine;
+  ali, alo: PByteArray;
 begin
-  Proportional := IsProportional;
+  IsAlpha := False;
 
   if IsPng then
   begin
     SourcePict := TPNGObject.Create;
-    SourcePict.Assign(OriginPicture.Graphic);
+    SourcePict.Assign(DestPicture.Graphic);
     IsAlpha := (SourcePict.Header.ColorType = COLOR_RGBALPHA);
   end
   else
   begin
-    SourceBmp := TBitmap.Create;
-    SourceBmp.Assign(OriginPicture.Graphic);
+    SourceBmp := TBitMap.Create;
+    SourceBmp.Assign(DestPicture.Graphic);
   end;
-
-  SourceCenter.Y := OriginPicture.Height div 2;
-  SourceCenter.X := OriginPicture.Width div 2;
-
-  ScaleX := OriginPicture.Width / NewWidth;
-  ScaleY := OriginPicture.Height / NewHeight;
 
   if IsPng then
   begin
@@ -326,98 +353,141 @@ begin
   end
   else
   begin
-    DestBmp := TBitmap.Create;
+    DestBmp := TBitMap.Create;
     DestBmp.SetSize(NewWidth, NewHeight);
     DestBmp.PixelFormat := pf24bit;
   end;
 
-  DestCenter.X := NewWidth div 2;
-  DestCenter.Y := NewHeight div 2;
+  ScaleX := NewWidth / (DestPicture.Width - 1);
+  ScaleY := NewHeight / (DestPicture.Height - 1);
 
-  for Y := -DestCenter.Y to NewHeight - DestCenter.Y - 1 do
+  for to_y := 0 to NewHeight - 1 do
   begin
-    if IsPng then
-      RowDest := DestPict.ScanLine[Y + DestCenter.Y]
-    else
-      RowDest := DestBmp.ScanLine[Y + DestCenter.Y];
-    if IsPng and IsAlpha then
-      SourceAlpha := DestPict.AlphaScanline[Y + DestCenter.Y];
-    for X := -DestCenter.X to NewWidth - DestCenter.X - 1 do
+    sfrom_y := to_y / ScaleY;
+    ifrom_y := Trunc(sfrom_y);
+    weight_y[1] := sfrom_y - ifrom_y;
+    weight_y[0] := 1 - weight_y[1];
+    for to_x := 0 to NewWidth - 1 do
     begin
-      SourcePoint.X := Round(ScaleX * X) + SourceCenter.X;
-      SourcePoint.Y := Round(ScaleY * Y) + SourceCenter.Y;
-      if (SourcePoint.X >= 0) and (SourcePoint.X < OriginPicture.Width) and (SourcePoint.Y >= 0) and
-        (SourcePoint.Y < OriginPicture.Height) then
-      begin
-        if IsPng then
-          RowSource := SourcePict.ScanLine[SourcePoint.Y]
-        else
-          RowSource := SourceBmp.ScanLine[SourcePoint.Y];
-        RowDest[X + DestCenter.X] := RowSource[SourcePoint.X];
+      sfrom_x := to_x / ScaleX;
+      ifrom_x := Trunc(sfrom_x);
+      weight_x[1] := sfrom_x - ifrom_x;
+      weight_x[0] := 1 - weight_x[1];
 
-        if IsPng and IsAlpha then
+      total_red := 0.0;
+      total_green := 0.0;
+      total_blue := 0.0;
+      total_alpha := 0.0;
+      for ix := 0 to 1 do
+      begin
+        for iy := 0 to 1 do
         begin
-          DestAlpha := SourcePict.AlphaScanline[SourcePoint.Y];
-          SourceAlpha[X + DestCenter.X] := DestAlpha[SourcePoint.X];
+          if IsPng then
+            sli := SourcePict.ScanLine[ifrom_y + iy]
+          else
+            sli := SourceBmp.ScanLine[ifrom_y + iy];
+          if IsPng and IsAlpha then
+            ali := SourcePict.AlphaScanline[ifrom_y + iy];
+          new_red := sli[ifrom_x + ix].rgbtRed;
+          new_green := sli[ifrom_x + ix].rgbtGreen;
+          new_blue := sli[ifrom_x + ix].rgbtBlue;
+          if IsAlpha then
+            new_alpha := ali[ifrom_x + ix];
+          weight := weight_x[ix] * weight_y[iy];
+          total_red := total_red + new_red * weight;
+          total_green := total_green + new_green * weight;
+          total_blue := total_blue + new_blue * weight;
+          if IsAlpha then
+            total_alpha := total_alpha + new_alpha * weight;
         end;
       end;
+      if IsPng then
+        slo := DestPict.ScanLine[to_y]
+      else
+        slo := DestBmp.ScanLine[to_y];
+      if IsPng and IsAlpha then
+        alo := DestPict.AlphaScanline[to_y];
+      slo[to_x].rgbtRed := Round(total_red);
+      slo[to_x].rgbtGreen := Round(total_green);
+      slo[to_x].rgbtBlue := Round(total_blue);
+      if IsAlpha then
+        alo[to_x] := Round(total_alpha);
     end;
   end;
-
   if IsPng then
   begin
-    OriginPicture.Assign(DestPict);
-    ViewImage(DestPict);
-    DestPict.Free;
+    DestPicture.Assign(DestPict);
     SourcePict.Free;
+    DestPict.Free;
   end
   else
   begin
-    OriginPicture.Assign(DestBmp);
-    ViewImage(DestBmp);
-    DestBmp.Free;
+    DestPicture.Assign(DestBmp);
     SourceBmp.Free;
+    DestBmp.Free;
   end;
 end;
 
-procedure TObjectImage.Rotate(Angle: Integer);
+procedure TObjectImage.Rotate(var DestPicture: TPicture; Angle: Integer);
+
+  function IntToByte(I: Integer): Byte;
+  begin
+    if I > 255 then
+      result := 255
+    else if I < 0 then
+      result := 0
+    else
+      result := I;
+  end;
+
+  function TrimInt(I, Min, Max: Integer): Integer;
+  begin
+    if I > Max then
+      result := Max
+    else if I < Min then
+      result := Min
+    else
+      result := I;
+  end;
+
 var
-  SinRad, CosRad, AngleRad: Real;
-  RowSource, RowDest: PPixelArray;
+  SinRad, CosRad, AngleRad, T, B, dltX, dltY, srcX, srcY: Extended;
+  DestRow, R1, R2: PByteArray;
   Y, X, I, DestColorType: Integer;
-  SourcePoint, SourceCenter, DestCenter, MaxP, MinP: TPoint;
+  srcPoint, SourceCenter, DestCenter, MaxP, MinP, N: TPoint;
   Corners: array [1 .. 4] of TPoint;
   SourcePict, DestPict: TPNGObject;
-  SourceBmp, DestBmp: TBitmap;
-  DestAlpha, SourceAlpha: PByteArray;
+  SourceBmp, DestBmp: TBitMap;
+  DestAlpha, A1, A2: PByteArray;
   IsAlpha: Boolean;
+  nw, ne, sw, se: TRGB;
+  anw, ane, asw, ase: Byte;
 begin
-  Self.FAngle := Angle;
-
-  AngleRad := Angle * Pi / 180;
-  SinRad := Sin(AngleRad);
-  CosRad := Cos(AngleRad);
+  IsAlpha := False;
+  AngleRad := Angle * PI / 180;
+  SinRad := sin(AngleRad);
+  CosRad := cos(AngleRad);
 
   if IsPng then
   begin
     SourcePict := TPNGObject.Create;
-    SourcePict.Assign(OriginPicture.Graphic);
+    SourcePict.Assign(DestPicture.Graphic);
     IsAlpha := (SourcePict.Header.ColorType = COLOR_RGBALPHA);
   end
   else
   begin
-    SourceBmp := TBitmap.Create;
-    SourceBmp.Assign(OriginPicture.Graphic);
+    SourceBmp := TBitMap.Create;
+    SourceBmp.Assign(DestPicture.Graphic);
   end;
 
-  SourceCenter.Y := OriginPicture.Height div 2;
-  SourceCenter.X := OriginPicture.Width div 2;
+  SourceCenter.Y := DestPicture.Height div 2;
+  SourceCenter.X := DestPicture.Width div 2;
 
   Corners[1].X := -SourceCenter.X;
   Corners[1].Y := -SourceCenter.Y;
   Corners[2].X := Corners[1].X;
-  Corners[2].Y := OriginPicture.Height - SourceCenter.Y;
-  Corners[3].X := OriginPicture.Width - SourceCenter.X;
+  Corners[2].Y := DestPicture.Height - SourceCenter.Y;
+  Corners[3].X := DestPicture.Width - SourceCenter.X;
   Corners[3].Y := Corners[2].Y;
   Corners[4].X := Corners[3].X;
   Corners[4].Y := Corners[1].Y;
@@ -441,7 +511,7 @@ begin
   end
   else
   begin
-    DestBmp := TBitmap.Create;
+    DestBmp := TBitMap.Create;
     DestBmp.SetSize(MaxP.X - MinP.X + 1, MaxP.Y - MinP.Y + 1);
     DestBmp.PixelFormat := pf24bit;
   end;
@@ -452,28 +522,85 @@ begin
   for Y := MinP.Y to MaxP.Y - 1 do
   begin
     if IsPng then
-      RowDest := DestPict.ScanLine[Y + DestCenter.Y]
+      DestRow := DestPict.ScanLine[Y + DestCenter.Y]
     else
-      RowDest := DestBmp.ScanLine[Y + DestCenter.Y];
+      DestRow := DestBmp.ScanLine[Y + DestCenter.Y];
     if IsPng and IsAlpha then
-      SourceAlpha := DestPict.AlphaScanline[Y + DestCenter.Y];
+      DestAlpha := DestPict.AlphaScanline[Y + DestCenter.Y];
     for X := MinP.X to MaxP.X - 1 do
     begin
-      SourcePoint.X := Round(CosRad * X - SinRad * Y) + SourceCenter.X;
-      SourcePoint.Y := Round(SinRad * X + CosRad * Y) + SourceCenter.Y;
-      if (SourcePoint.X >= 0) and (SourcePoint.X < OriginPicture.Width) and (SourcePoint.Y >= 0) and
-        (SourcePoint.Y < OriginPicture.Height) then
+      srcX := CosRad * X - SinRad * Y + SourceCenter.X;
+      srcY := SinRad * X + CosRad * Y + SourceCenter.Y;
+
+      srcPoint.X := Round(srcX);
+      srcPoint.Y := Round(srcY);
+
+      if (srcPoint.X >= 0) and (srcPoint.X < DestPicture.Width) and (srcPoint.Y >= 0) and
+        (srcPoint.Y < DestPicture.Height) then
       begin
+
+        if srcY > 40 then
+          MainForm.Caption := '';
+
+        dltX := srcX - srcPoint.X;
+        dltY := srcY - srcPoint.Y;
+
+        N.X := TrimInt(srcPoint.X + 1, 0, DestPicture.Width - 1);
+        N.Y := TrimInt(srcPoint.Y + 1, 0, DestPicture.Height - 1);
+
         if IsPng then
-          RowSource := SourcePict.ScanLine[SourcePoint.Y]
+        begin
+          R1 := SourcePict.ScanLine[srcPoint.Y];
+          R2 := SourcePict.ScanLine[N.Y];
+        end
         else
-          RowSource := SourceBmp.ScanLine[SourcePoint.Y];
-        RowDest[X + DestCenter.X] := RowSource[SourcePoint.X];
+        begin
+          R1 := SourceBmp.ScanLine[srcPoint.Y];
+          R2 := SourceBmp.ScanLine[N.Y];
+        end;
 
         if IsPng and IsAlpha then
         begin
-          DestAlpha := SourcePict.AlphaScanline[SourcePoint.Y];
-          SourceAlpha[X + DestCenter.X] := DestAlpha[SourcePoint.X];
+          A1 := SourcePict.AlphaScanline[srcPoint.Y];
+          A2 := SourcePict.AlphaScanline[N.Y];
+        end;
+
+        nw.R := R1[srcPoint.X * 3];
+        nw.G := R1[srcPoint.X * 3 + 1];
+        nw.B := R1[srcPoint.X * 3 + 2];
+        if IsPng and IsAlpha then
+          anw := A1[srcPoint.X];
+        ne.R := R1[N.X * 3];
+        ne.G := R1[N.X * 3 + 1];
+        ne.B := R1[N.X * 3 + 2];
+        if IsPng and IsAlpha then
+          ane := A1[N.X];
+        sw.R := R2[srcPoint.X * 3];
+        sw.G := R2[srcPoint.X * 3 + 1];
+        sw.B := R2[srcPoint.X * 3 + 2];
+        if IsPng and IsAlpha then
+          asw := A2[srcPoint.X];
+        se.R := R2[N.X * 3];
+        se.G := R2[N.X * 3 + 1];
+        se.B := R2[N.X * 3 + 2];
+        if IsPng and IsAlpha then
+          ase := A2[N.X];
+
+        T := nw.B + dltX * (ne.B - nw.B);
+        B := sw.B + dltX * (se.B - sw.B);
+        DestRow[(X + DestCenter.X) * 3 + 2] := IntToByte(Round(T + dltY * (B - T)));
+        T := nw.G + dltX * (ne.G - nw.G);
+        B := sw.G + dltX * (se.G - sw.G);
+        DestRow[(X + DestCenter.X) * 3 + 1] := IntToByte(Round(T + dltY * (B - T)));
+        T := nw.R + dltX * (ne.R - nw.R);
+        B := sw.R + dltX * (se.R - sw.R);
+        DestRow[(X + DestCenter.X) * 3] := IntToByte(Round(T + dltY * (B - T)));
+
+        if IsPng and IsAlpha then
+        begin
+          T := anw + dltX * (ane - anw);
+          B := asw + dltX * (ase - asw);
+          DestAlpha[(X + DestCenter.X)] := IntToByte(Round(T + dltY * (B - T)));
         end;
       end;
     end;
@@ -481,13 +608,13 @@ begin
 
   if IsPng then
   begin
-    ViewImage(DestPict);
+    DestPicture.Assign(DestPict);
     DestPict.Free;
     SourcePict.Free;
   end
   else
   begin
-    ViewImage(DestBmp);
+    DestPicture.Assign(DestBmp);
     DestBmp.Free;
     SourceBmp.Free;
   end;

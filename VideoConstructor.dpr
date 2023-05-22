@@ -10,8 +10,7 @@ uses
   ActionEditUnit in 'ActionEditUnit.pas' {ActionEditForm},
   ObjectUnit in 'ObjectUnit.pas',
   VideoUnit in 'VideoUnit.pas',
-  vfw in 'vfw.pas',
-  MPEGFunctions in 'MPEGFunctions.pas';
+  ProgressViewUnit in 'ProgressViewUnit.pas' {ProgressForm};
 
 {$R *.res}
 
@@ -22,5 +21,6 @@ begin
   Application.CreateForm(TBackMenuForm, BackMenuForm);
   Application.CreateForm(TObjectOptionsForm, ObjectOptionsForm);
   Application.CreateForm(TActionEditForm, ActionEditForm);
+  Application.CreateForm(TProgressForm, ProgressForm);
   Application.Run;
 end.

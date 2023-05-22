@@ -34,9 +34,29 @@ type
     bbtnStartPoin: TBitBtn;
     bbtnEndPoint: TBitBtn;
     bbtnThirdPoint: TBitBtn;
+    lbStartAngle: TLabel;
+    lbEndAngle: TLabel;
+    edtStartAngle: TEdit;
+    edtEndAngle: TEdit;
+    lbStartHeight: TLabel;
+    lbStartWidth: TLabel;
+    edtStartHeight: TEdit;
+    chbIsProportionalStart: TCheckBox;
+    edtStartWidth: TEdit;
+    pnlStartSize: TPanel;
+    pnlEndSize: TPanel;
+    lbEndHeight: TLabel;
+    lbEndWidth: TLabel;
+    chbIsProportionalEnd: TCheckBox;
+    edtEndHeight: TEdit;
+    edtEndWidth: TEdit;
     procedure FormCreate(Sender: TObject);
     procedure FormCloseQuery(Sender: TObject; var CanClose: Boolean);
     procedure cbActionTypeChange(Sender: TObject);
+    procedure edtStartHeightChange(Sender: TObject);
+    procedure edtStartWidthChange(Sender: TObject);
+    procedure edtEndHeightChange(Sender: TObject);
+    procedure edtEndWidthChange(Sender: TObject);
     procedure bbtnStartPoinClick(Sender: TObject);
     procedure bbtnEndPointClick(Sender: TObject);
     procedure bbtnThirdPointClick(Sender: TObject);
@@ -78,6 +98,40 @@ end;
 procedure TActionEditForm.bbtnThirdPointClick(Sender: TObject);
 begin
   PrepareForClick(pThird);
+end;
+
+procedure TActionEditForm.edtStartHeightChange(Sender: TObject);
+begin
+  if edtStartHeight.Modified and chbIsProportionalStart.Checked and (edtStartHeight.Text <> '') then
+    edtStartWidth.Text := IntToStr(Round(StrToInt(edtStartHeight.Text) / FObj.AspectRatio.Height *
+      FObj.AspectRatio.Width))
+  else if edtStartHeight.Modified and chbIsProportionalStart.Checked and (edtStartHeight.Text = '') then
+    edtStartWidth.Text := '';
+end;
+
+procedure TActionEditForm.edtStartWidthChange(Sender: TObject);
+begin
+  if edtStartWidth.Modified and chbIsProportionalEnd.Checked and (edtStartWidth.Text <> '') then
+    edtStartHeight.Text := IntToStr(Round(StrToInt(edtStartWidth.Text) / FObj.AspectRatio.Width *
+      FObj.AspectRatio.Height))
+  else if edtStartWidth.Modified and chbIsProportionalEnd.Checked and (edtStartWidth.Text = '') then
+    edtStartHeight.Text := '';
+end;
+
+procedure TActionEditForm.edtEndHeightChange(Sender: TObject);
+begin
+  if edtEndHeight.Modified and chbIsProportionalEnd.Checked and (edtEndHeight.Text <> '') then
+    edtEndWidth.Text := IntToStr(Round(StrToInt(edtEndHeight.Text) / FObj.AspectRatio.Height * FObj.AspectRatio.Width))
+  else if edtEndHeight.Modified and chbIsProportionalEnd.Checked and (edtEndHeight.Text = '') then
+    edtEndWidth.Text := '';
+end;
+
+procedure TActionEditForm.edtEndWidthChange(Sender: TObject);
+begin
+  if edtEndWidth.Modified and chbIsProportionalEnd.Checked and (edtEndWidth.Text <> '') then
+    edtEndHeight.Text := IntToStr(Round(StrToInt(edtEndWidth.Text) / FObj.AspectRatio.Width * FObj.AspectRatio.Height))
+  else if edtEndWidth.Modified and chbIsProportionalEnd.Checked and (edtEndWidth.Text = '') then
+    edtEndHeight.Text := '';
 end;
 
 procedure TActionEditForm.cbActionTypeChange(Sender: TObject);
@@ -199,12 +253,20 @@ end;
 procedure TActionEditForm.GetActionInfo(var Act: TACtionInfo);
 begin
   Act.ActType := TActionType(cbActionType.ItemIndex);
-  Act.TimeStart := StrToInt(edtTimeStart.Text);
-  Act.TimeEnd := StrToInt(edtTimeEnd.Text);
+  Act.TimeStart := StrToInt(edtTimeStart.Text) * 1000;
+  Act.TimeEnd := StrToInt(edtTimeEnd.Text) * 1000;
   Act.StartPoint.X := StrToInt(edtStartPointX.Text);
   Act.StartPoint.Y := StrToInt(edtStartPointY.Text);
   Act.EndPoint.X := StrToInt(edtEndPointX.Text);
   Act.EndPoint.Y := StrToInt(edtEndPointY.Text);
+  Act.StartAngle := StrToInt(edtStartAngle.Text);
+  Act.EndAngle := StrToInt(edtEndAngle.Text);
+  Act.IsPropStart := chbIsProportionalStart.Checked;
+  Act.IsPropEnd := chbIsProportionalEnd.Checked;
+  Act.StartHeight := StrToInt(edtStartHeight.Text);
+  Act.StartWidth := StrToInt(edtStartWidth.Text);
+  Act.EndHeight := StrToInt(edtEndHeight.Text);
+  Act.EndWidth := StrToInt(edtEndWidth.Text);
   if Act.ActType = actCircleMove then
   begin
     Act.ThirdPoint.X := StrToInt(edtThirdX.Text);
@@ -236,18 +298,30 @@ begin
     edtTimeStart.Text := IntToStr(Tmp.TimeEnd);
     edtStartPointX.Text := IntToStr(Tmp.EndPoint.X);
     edtStartPointY.Text := IntToStr(Tmp.EndPoint.Y);
+    edtStartAngle.Text := IntToStr(Tmp.EndAngle);
+    edtStartHeight.Text := IntToStr(Tmp.EndHeight);
+    edtStartWidth.Text := IntToStr(Tmp.EndWidth);
+    chbIsProportionalStart.Checked := Tmp.IsPropEnd;
   end
   else
   begin
     edtTimeStart.Text := '0';
     edtStartPointX.Text := IntToStr(FObj.Left + FObj.Width div 2);
     edtStartPointY.Text := IntToStr(FObj.Top + FObj.Height div 2);
+    edtStartAngle.Text := IntToStr(FObj.Angle);
+    edtStartHeight.Text := IntToStr(FObj.ExplicitH);
+    edtStartWidth.Text := IntToStr(FObj.ExplicitW);
+    chbIsProportionalStart.Checked := FObj.Proportional;
   end;
   cbActionType.ItemIndex := 0;
   cbActionTypeChange(Self);
   edtTimeEnd.Text := '';
   edtEndPointX.Text := '';
   edtEndPointY.Text := '';
+  edtEndAngle.Text := edtStartAngle.Text;
+  edtEndHeight.Text := edtStartHeight.Text;
+  edtEndWidth.Text := edtStartWidth.Text;
+  chbIsProportionalEnd.Checked := chbIsProportionalStart.Checked;
 
   result := ShowModal;
 
@@ -273,12 +347,20 @@ begin
     edtThirdX.Text := IntToStr(Act.ThirdPoint.X);
     edtThirdY.Text := IntToStr(Act.ThirdPoint.Y);
   end;
-  edtTimeStart.Text := IntToStr(Act.TimeStart);
-  edtTimeEnd.Text := IntToStr(Act.TimeEnd);
+  edtTimeStart.Text := IntToStr(Act.TimeStart div 1000);
+  edtTimeEnd.Text := IntToStr(Act.TimeEnd div 1000);
   edtStartPointX.Text := IntToStr(Act.StartPoint.X);
   edtStartPointY.Text := IntToStr(Act.StartPoint.Y);
   edtEndPointX.Text := IntToStr(Act.EndPoint.X);
   edtEndPointY.Text := IntToStr(Act.EndPoint.Y);
+  edtStartAngle.Text := IntToStr(Act.StartAngle);
+  edtEndAngle.Text := IntToStr(Act.EndAngle);
+  edtStartHeight.Text := IntToStr(Act.StartHeight);
+  edtStartWidth.Text := IntToStr(Act.StartWidth);
+  chbIsProportionalStart.Checked := Act.IsPropStart;
+  edtEndHeight.Text := IntToStr(Act.EndHeight);
+  edtEndWidth.Text := IntToStr(Act.EndWidth);
+  chbIsProportionalEnd.Checked := Act.IsPropEnd;
 
   result := ShowModal;
 

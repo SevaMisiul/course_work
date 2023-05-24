@@ -43,13 +43,13 @@ type
     edtStartHeight: TEdit;
     chbIsProportionalStart: TCheckBox;
     edtStartWidth: TEdit;
-    pnlStartSize: TPanel;
-    pnlEndSize: TPanel;
     lbEndHeight: TLabel;
     lbEndWidth: TLabel;
     chbIsProportionalEnd: TCheckBox;
     edtEndHeight: TEdit;
     edtEndWidth: TEdit;
+    pnlMoreOptions: TPanel;
+    btnMode: TButton;
     procedure FormCreate(Sender: TObject);
     procedure FormCloseQuery(Sender: TObject; var CanClose: Boolean);
     procedure cbActionTypeChange(Sender: TObject);
@@ -61,6 +61,7 @@ type
     procedure bbtnEndPointClick(Sender: TObject);
     procedure bbtnThirdPointClick(Sender: TObject);
     procedure FormMouseDown(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
+    procedure btnModeClick(Sender: TObject);
   private
     FObj: TObjectImage;
     FIsEditing: Boolean;
@@ -68,6 +69,8 @@ type
     FIsWaitingClick: Boolean;
     FPointEdit: TPointEdit;
     FParentForm: TObjectOptionsForm;
+    FMode: Integer;
+    procedure SwitchMode;
     procedure PrepareForClick(TPEdt: TPointEdit);
     procedure GetActionInfo(var Act: TACtionInfo);
   public
@@ -85,6 +88,9 @@ implementation
 uses
   MainUnit;
 
+const
+  ModeCaptions: array [0 .. 1] of string = ('More >>', 'Less <<');
+
 procedure TActionEditForm.bbtnEndPointClick(Sender: TObject);
 begin
   PrepareForClick(pEnd);
@@ -98,6 +104,11 @@ end;
 procedure TActionEditForm.bbtnThirdPointClick(Sender: TObject);
 begin
   PrepareForClick(pThird);
+end;
+
+procedure TActionEditForm.btnModeClick(Sender: TObject);
+begin
+  SwitchMode;
 end;
 
 procedure TActionEditForm.edtStartHeightChange(Sender: TObject);
@@ -188,8 +199,8 @@ begin
   else if (ModalResult = mrOk) and (FObj.ActionList[0] <> nil) and
     (StrToInt(edtTimeStart.Text) < FObj.EndActionList^.Info.TimeEnd) then
   begin
-    StartT := StrToInt(edtTimeStart.Text);
-    EndT := StrToInt(edtTimeEnd.Text);
+    StartT := StrToInt(edtTimeStart.Text) * 1000;
+    EndT := StrToInt(edtTimeEnd.Text) * 1000;
     IsCorrect := True;
     Tmp := FObj.ActionList[0];
     while IsCorrect and (Tmp <> nil) do
@@ -287,6 +298,8 @@ function TActionEditForm.ShowForAdd(var Act: TACtionInfo; Obj: TObjectImage; Par
 var
   Tmp: TACtionInfo;
 begin
+  FMode := 1;
+  SwitchMode;
   FObj := Obj;
   FIsEditing := False;
   FIsWaitingClick := False;
@@ -295,7 +308,7 @@ begin
   if Obj.ActionList[0] <> nil then
   begin
     Tmp := Obj.EndActionList^.Info;
-    edtTimeStart.Text := IntToStr(Tmp.TimeEnd);
+    edtTimeStart.Text := IntToStr(Tmp.TimeEnd div 1000);
     edtStartPointX.Text := IntToStr(Tmp.EndPoint.X);
     edtStartPointY.Text := IntToStr(Tmp.EndPoint.Y);
     edtStartAngle.Text := IntToStr(Tmp.EndAngle);
@@ -334,6 +347,8 @@ end;
 function TActionEditForm.ShowForEdit(var Act: TACtionInfo; Obj: TObjectImage; ParentF: TObjectOptionsForm)
   : TModalResult;
 begin
+  FMode := 1;
+  SwitchMode;
   FObj := Obj;
   FIsEditing := True;
   FCurrAct := Act;
@@ -368,6 +383,15 @@ begin
   begin
     GetActionInfo(Act);
   end;
+end;
+
+procedure TActionEditForm.SwitchMode;
+begin
+  FMode := 1 xor FMode;
+  btnMode.Caption := ModeCaptions[FMode];
+  Width := 430 + FMode * 280;
+  btnCancel.Left := ClientWidth - btnCancel.Width - btnCancel.Margins.Right;
+  btnOk.Left := btnCancel.Left - btnOk.Width - btnOk.Margins.Right;
 end;
 
 end.

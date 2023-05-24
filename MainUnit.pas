@@ -13,8 +13,7 @@ uses
 
 type
   TObjectIcon = class(TImage)
-    procedure ObjectIconMouseDown(Sender: TObject; Button: TMouseButton;
-      Shift: TShiftState; X, Y: Integer);
+    procedure ObjectIconMouseDown(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
   private const
     SpaceLeft = 10;
     SpaceTop = 20;
@@ -46,10 +45,10 @@ type
     alMenuActions: TActionList;
     actRunAnimation: TAction;
     SaveVideoDialog: TSaveDialog;
-    File1: TMenuItem;
+    menuFile: TMenuItem;
     actSaveVideoAs: TAction;
     Savevideo1: TMenuItem;
-    Run1: TMenuItem;
+    menuRun: TMenuItem;
     actSaveVideo: TAction;
     Savevideo2: TMenuItem;
     imglIcons: TImageList;
@@ -58,13 +57,10 @@ type
     procedure AddImgClick(Sender: TObject);
     procedure imgPanelOpenClick(Sender: TObject);
     procedure FormCreate(Sender: TObject);
-    procedure scrlbObjectsMouseWheelDown(Sender: TObject; Shift: TShiftState;
-      MousePos: TPoint; var Handled: Boolean);
-    procedure scrlbObjectsMouseWheelUp(Sender: TObject; Shift: TShiftState;
-      MousePos: TPoint; var Handled: Boolean);
+    procedure scrlbObjectsMouseWheelDown(Sender: TObject; Shift: TShiftState; MousePos: TPoint; var Handled: Boolean);
+    procedure scrlbObjectsMouseWheelUp(Sender: TObject; Shift: TShiftState; MousePos: TPoint; var Handled: Boolean);
     procedure FormClick(Sender: TObject);
-    procedure FormDragOver(Sender, Source: TObject; X, Y: Integer;
-      State: TDragState; var Accept: Boolean);
+    procedure FormDragOver(Sender, Source: TObject; X, Y: Integer; State: TDragState; var Accept: Boolean);
     procedure FormDragDrop(Sender, Source: TObject; X, Y: Integer);
     procedure imgPanelCloseClick(Sender: TObject);
     procedure actRunAnimationExecute(Sender: TObject);
@@ -83,12 +79,12 @@ type
     FObjectFileNames: System.TArray<string>;
     procedure SwitchPanel;
     procedure PrepareSaveVideo(var bmp: TBitMap; var Duration: Integer);
+    procedure SetMenu(Mode: Boolean);
   public
     destructor Destroy; override;
     procedure AddObject(Obj: TObjectImage);
     procedure CompleteAnimation;
-    class procedure DrawFrame(Tmp: PObjectLI; Buff: TBitMap; var IsEnd: Boolean;
-      CurrTime: Single);
+    class procedure DrawFrame(Tmp: PObjectLI; Buff: TBitMap; var IsEnd: Boolean; CurrTime: Single);
     { properties }
     property ObjectList: PObjectLI read FObjectList write FObjectList;
     property ObjectPanelTop: Integer read FObjectPanelTop write FObjectPanelTop;
@@ -118,11 +114,19 @@ begin
   begin
     with Tmp^.ObjectImage do
     begin
+      CurrX := Left + Width div 2;
+      CurrY := Top + Height div 2;
+      AnimatedPicture.Assign(OriginPicture);
       if ActionList[0] <> nil then
       begin
-        CurrX := Left + Width div 2;
-        CurrY := Top + Height div 2;
         CurrAction := ActionList[0];
+        with CurrAction^.Info do
+        begin
+          if (StartWidth = EndWidth) and (StartHeight = EndHeight) then
+            TObjectImage.Resize(AnimatedPicture, StartWidth, StartHeight, IsPng);
+          if (StartAngle = StartWidth) and (StartWidth = EndWidth) and (StartHeight = EndHeight) then
+            TObjectImage.Rotate(AnimatedPicture, StartAngle, IsPng);
+        end;
       end;
       Visible := False;
     end;
@@ -147,12 +151,10 @@ begin
   if SaveVideoDialog.Execute then
   begin
     if FileExists(SaveVideoDialog.FileName) then
-      btnSelected := MessageDlg('File already exists. Overwrite it?',
-        mtConfirmation, [mbYes, mbNo], 0);
+      btnSelected := MessageDlg('File already exists. Overwrite it?', mtConfirmation, [mbYes, mbNo], 0);
     if btnSelected = mrYes then
     begin
-      CreateVideo(SaveVideoDialog.FileName, bmp.Width, bmp.Height, 60,
-        Duration div 1000, bmp, ObjectList);
+      CreateVideo(SaveVideoDialog.FileName, bmp.Width, bmp.Height, 60, Duration div 1000, bmp, ObjectList);
       FIsFirstSave := False;
     end;
   end;
@@ -174,11 +176,9 @@ begin
   else
   begin
     if FileExists(SaveVideoDialog.FileName) then
-      btnSelected := MessageDlg('File already exists. Overwrite it?',
-        mtConfirmation, [mbYes, mbNo], 0);
+      btnSelected := MessageDlg('File already exists. Overwrite it?', mtConfirmation, [mbYes, mbNo], 0);
     if btnSelected = mrYes then
-      CreateVideo(SaveVideoDialog.FileName, bmp.Width, bmp.Height, 60,
-        Duration div 1000, bmp, ObjectList);
+      CreateVideo(SaveVideoDialog.FileName, bmp.Width, bmp.Height, 60, Duration div 1000, bmp, ObjectList);
   end;
   bmp.Destroy;
 end;
@@ -193,20 +193,15 @@ begin
     begin
       Rever := ReverseString(OpenObjectIconDialog.FileName);
       FileExtension := ReverseString(Copy(Rever, 1, Pos('.', Rever)));
-      FilePath := 'objects\' + IntToStr(scrlbObjects.ControlCount - 1) +
-        FileExtension;
+      FilePath := 'objects\' + IntToStr(scrlbObjects.ControlCount - 1) + FileExtension;
       CopyFile(PChar(OpenObjectIconDialog.FileName), PChar(FilePath), False);
 
-      TObjectIcon.Create(scrlbObjects, ObjectPanelTop -
-        scrlbObjects.VertScrollBar.Position, FilePath);
-      ObjectPanelTop := ObjectPanelTop + TObjectIcon.SpaceTop +
-        TObjectIcon.ObjectHeight;
+      TObjectIcon.Create(scrlbObjects, ObjectPanelTop - scrlbObjects.VertScrollBar.Position, FilePath);
+      ObjectPanelTop := ObjectPanelTop + TObjectIcon.SpaceTop + TObjectIcon.ObjectHeight;
 
-      FAddObjectIcon.Top := ObjectPanelTop -
-        scrlbObjects.VertScrollBar.Position;
+      FAddObjectIcon.Top := ObjectPanelTop - scrlbObjects.VertScrollBar.Position;
 
-      scrlbObjects.VertScrollBar.Range := ObjectPanelTop + TObjectIcon.SpaceTop
-        + TObjectIcon.ObjectHeight;
+      scrlbObjects.VertScrollBar.Range := ObjectPanelTop + TObjectIcon.SpaceTop + TObjectIcon.ObjectHeight;
     end
     else
       raise Exception.Create('File does not exist.');
@@ -232,8 +227,7 @@ begin
   CurrTime := GetTickCount - FRunTime;
   TmpBuff := TBitMap.Create;
   TmpBuff.SetSize(ClientWidth, ClientHeight);
-  TmpBuff.Canvas.StretchDraw(Rect(0, 0, ClientWidth, ClientHeight),
-    BackMenuForm.BkPict.Graphic);
+  TmpBuff.Canvas.StretchDraw(Rect(0, 0, ClientWidth, ClientHeight), BackMenuForm.BkPict.Graphic);
   Tmp := ObjectList;
   IsEnd := True;
   TMainForm.DrawFrame(Tmp, TmpBuff, IsEnd, CurrTime);
@@ -252,8 +246,9 @@ begin
   if BackMenuForm.BkPict <> nil then
   begin
     btnCreateAnimation.Visible := False;
-    Canvas.StretchDraw(Rect(0, 0, ClientWidth, ClientHeight),
-      BackMenuForm.BkPict.Graphic);
+    Canvas.StretchDraw(Rect(0, 0, ClientWidth, ClientHeight), BackMenuForm.BkPict.Graphic);
+
+    SetMenu(True);
 
     imgPanelOpen.Visible := True;
     imgPanelOpen.Top := ClientHeight div 2 - imgPanelOpen.Height;
@@ -289,8 +284,7 @@ begin
   inherited Destroy;
 end;
 
-class procedure TMainForm.DrawFrame(Tmp: PObjectLI; Buff: TBitMap;
-  var IsEnd: Boolean; CurrTime: Single);
+class procedure TMainForm.DrawFrame(Tmp: PObjectLI; Buff: TBitMap; var IsEnd: Boolean; CurrTime: Single);
 var
   PixelTime, R1X, R1Y, R2X, R2Y, Alpha, CurrAlpha, NX, NY, TimeRatio: Extended;
   dltH, dltW: Integer;
@@ -300,9 +294,18 @@ begin
   while Tmp <> nil do
     with Tmp^.ObjectImage, CurrAction^.Info do
     begin
-      TmpPict.Assign(OriginPicture);
-      if (CurrAction <> nil) and (CurrTime >= TimeEnd) then
+      if (CurrAction <> nil) and (CurrAction^.Next <> nil) and (CurrTime >= CurrAction^.Next^.Info.TimeStart) then
+      begin
+        AnimatedPicture.Assign(OriginPicture);
         CurrAction := CurrAction^.Next;
+        if (StartWidth = EndWidth) and (StartHeight = EndHeight) then
+          TObjectImage.Resize(AnimatedPicture, StartWidth, StartHeight, IsPng);
+        if (StartAngle = StartWidth) and (StartWidth = EndWidth) and (StartHeight = EndHeight) then
+          TObjectImage.Rotate(AnimatedPicture, StartAngle, IsPng);
+      end
+      else if (CurrAction <> nil) and (CurrAction^.Next = nil) and (CurrTime >= TimeEnd) then
+        CurrAction := CurrAction^.Next;
+      TmpPict.Assign(AnimatedPicture);
       IsEnd := IsEnd and (CurrAction = nil);
       if (CurrAction <> nil) and (CurrTime >= TimeStart) then
       begin
@@ -329,14 +332,12 @@ begin
         begin
           dltH := Round((EndHeight - StartHeight) * TimeRatio);
           dltW := Round((EndWidth - StartWidth) * TimeRatio);
-          Resize(TmpPict, StartWidth + dltW, StartHeight + dltH);
+          Resize(TmpPict, StartWidth + dltW, StartHeight + dltH, IsPng);
         end;
-        if StartAngle <> EndAngle then
-          Rotate(TmpPict, StartAngle + Round((EndAngle - StartAngle) *
-            TimeRatio));
+        if (StartHeight <> EndHeight) or (StartWidth <> EndWidth) or (StartAngle <> EndAngle) then
+          Rotate(TmpPict, StartAngle + Round((EndAngle - StartAngle) * TimeRatio), IsPng);
       end;
-      Buff.Canvas.Draw(Round(CurrX) - TmpPict.Width div 2,
-        Round(CurrY) - TmpPict.Height div 2, TmpPict.Graphic);
+      Buff.Canvas.Draw(Round(CurrX) - TmpPict.Width div 2, Round(CurrY) - TmpPict.Height div 2, TmpPict.Graphic);
       Tmp := Tmp^.Next;
     end;
   TmpPict.Destroy;
@@ -350,8 +351,7 @@ begin
   begin
     GetCursorPos(MousePos);
     MousePos := ScreenToClient(MousePos);
-    TObjectImage.Create(Self, MousePos.X - Left, MousePos.Y - Top,
-      FSelectedPicture, FIsSelectedPng);
+    TObjectImage.Create(Self, MousePos.X - Left, MousePos.Y - Top, FSelectedPicture, FIsSelectedPng);
     FWaitingClickToCreate := False;
   end;
 end;
@@ -368,7 +368,9 @@ begin
   btnCreateAnimation.Top := P.Y;
   btnCreateAnimation.Left := P.X;
 
-    FIsFirstSave := True;
+  SetMenu(False);
+
+  FIsFirstSave := True;
   DoubleBuffered := True;
   CreateDir('backgrounds');
   CreateDir('Icons');
@@ -376,8 +378,7 @@ begin
 
   SaveVideoDialog.Filter := '';
   for Extn in VideoExtensions do
-    SaveVideoDialog.Filter := SaveVideoDialog.Filter + 'Video ' + Copy(Extn, 3)
-      + '|' + Extn + '|';
+    SaveVideoDialog.Filter := SaveVideoDialog.Filter + 'Video ' + Copy(Extn, 3) + '|' + Extn + '|';
   SaveVideoDialog.Filter := SaveVideoDialog.Filter + 'Any file|*.*';
   SaveVideoDialog.FileName := 'Video';
   SaveVideoDialog.DefaultExt := '.mp4';
@@ -391,17 +392,14 @@ begin
   for Path in FObjectFileNames do
   begin
     TObjectIcon.Create(scrlbObjects, ObjectPanelTop, Path);
-    ObjectPanelTop := ObjectPanelTop + TObjectIcon.SpaceTop +
-      TObjectIcon.ObjectHeight;
+    ObjectPanelTop := ObjectPanelTop + TObjectIcon.SpaceTop + TObjectIcon.ObjectHeight;
   end;
 
-  FAddObjectIcon := TObjectIcon.Create(scrlbObjects, ObjectPanelTop,
-    'icons\addicon.png');
+  FAddObjectIcon := TObjectIcon.Create(scrlbObjects, ObjectPanelTop, 'icons\addicon.png');
   FAddObjectIcon.OnClick := AddImgClick;
   FAddObjectIcon.OnMouseDown := nil;
 
-  scrlbObjects.VertScrollBar.Range := ObjectPanelTop + TObjectIcon.SpaceTop +
-    TObjectIcon.ObjectHeight;
+  scrlbObjects.VertScrollBar.Range := ObjectPanelTop + TObjectIcon.SpaceTop + TObjectIcon.ObjectHeight;
 end;
 
 procedure TMainForm.FormDragDrop(Sender, Source: TObject; X, Y: Integer);
@@ -418,8 +416,7 @@ begin
   end;
 end;
 
-procedure TMainForm.FormDragOver(Sender, Source: TObject; X, Y: Integer;
-  State: TDragState; var Accept: Boolean);
+procedure TMainForm.FormDragOver(Sender, Source: TObject; X, Y: Integer; State: TDragState; var Accept: Boolean);
 begin
   Accept := (Source is TObjectIcon) or (Source is TObjectImage);
 end;
@@ -427,8 +424,7 @@ end;
 procedure TMainForm.FormPaint(Sender: TObject);
 begin
   if BackMenuForm.BkPict <> nil then
-    Canvas.StretchDraw(Rect(0, 0, ClientWidth, ClientHeight),
-      BackMenuForm.BkPict.Graphic);
+    Canvas.StretchDraw(Rect(0, 0, ClientWidth, ClientHeight), BackMenuForm.BkPict.Graphic);
 end;
 
 procedure TMainForm.imgPanelCloseClick(Sender: TObject);
@@ -447,8 +443,7 @@ var
 begin
   bmp := TBitMap.Create;
   bmp.SetSize(ClientWidth, ClientHeight);
-  bmp.Canvas.StretchDraw(Rect(0, 0, ClientWidth, ClientHeight),
-    BackMenuForm.BkPict.Graphic);
+  bmp.Canvas.StretchDraw(Rect(0, 0, ClientWidth, ClientHeight), BackMenuForm.BkPict.Graphic);
   Tmp := ObjectList;
   Duration := 0;
   while Tmp <> nil do
@@ -465,18 +460,27 @@ begin
   end;
 end;
 
-procedure TMainForm.scrlbObjectsMouseWheelDown(Sender: TObject;
-  Shift: TShiftState; MousePos: TPoint; var Handled: Boolean);
+procedure TMainForm.scrlbObjectsMouseWheelDown(Sender: TObject; Shift: TShiftState; MousePos: TPoint;
+  var Handled: Boolean);
 begin
   scrlbObjects.VertScrollBar.Position := scrlbObjects.VertScrollBar.Position +
     Integer(scrlbObjects.VertScrollBar.Increment);
 end;
 
-procedure TMainForm.scrlbObjectsMouseWheelUp(Sender: TObject;
-  Shift: TShiftState; MousePos: TPoint; var Handled: Boolean);
+procedure TMainForm.scrlbObjectsMouseWheelUp(Sender: TObject; Shift: TShiftState; MousePos: TPoint;
+  var Handled: Boolean);
 begin
   scrlbObjects.VertScrollBar.Position := scrlbObjects.VertScrollBar.Position -
     Integer(scrlbObjects.VertScrollBar.Increment);
+end;
+
+procedure TMainForm.SetMenu(Mode: Boolean);
+begin
+  menuFile.Enabled := Mode;
+  menuRun.Enabled := Mode;
+  actRunAnimation.Enabled := Mode;
+  actSaveVideoAs.Enabled := Mode;
+  actSaveVideo.Enabled := Mode;
 end;
 
 procedure TMainForm.SwitchPanel;
@@ -510,8 +514,7 @@ begin
   IsPng := (Copy(ImgPath, Pos('.', ImgPath)) = '.png');
 end;
 
-procedure TObjectIcon.ObjectIconMouseDown(Sender: TObject; Button: TMouseButton;
-  Shift: TShiftState; X, Y: Integer);
+procedure TObjectIcon.ObjectIconMouseDown(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
 begin
   TControl(Sender).BeginDrag(False);
   (Self.Parent.Parent as TMainForm).FIsSelectedPng := TObjectIcon(Sender).IsPng;

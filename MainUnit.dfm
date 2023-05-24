@@ -2138,7 +2138,7 @@ object MainForm: TMainForm
     Images = imglIcons
     Left = 104
     Top = 16
-    object File1: TMenuItem
+    object menuFile: TMenuItem
       Caption = 'File'
       object Savevideo2: TMenuItem
         Action = actSaveVideo
@@ -2147,7 +2147,7 @@ object MainForm: TMainForm
         Action = actSaveVideoAs
       end
     end
-    object Run1: TMenuItem
+    object menuRun: TMenuItem
       Caption = 'Run'
       object RunAnimation1: TMenuItem
         Action = actRunAnimation

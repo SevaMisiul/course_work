@@ -41,6 +41,7 @@ type
     procedure actEditActionExecute(Sender: TObject);
     procedure actAddActionExecute(Sender: TObject);
     procedure FormCloseQuery(Sender: TObject; var CanClose: Boolean);
+    procedure chbIsProportionalClick(Sender: TObject);
   private
     FObjectOwner: TObjectImage;
   public
@@ -97,6 +98,13 @@ procedure TObjectOptionsForm.actListUpdate(Action: TBasicAction; var Handled: Bo
 begin
   actDeleteAction.Enabled := lvActions.ItemIndex >= 0;
   actEditAction.Enabled := lvActions.ItemIndex >= 0;
+end;
+
+procedure TObjectOptionsForm.chbIsProportionalClick(Sender: TObject);
+begin
+  if chbIsProportional.Checked then
+    edtWidth.Text := IntToStr(Round(StrToInt(edtHeight.Text) / FObjectOwner.AspectRatio.Height *
+      FObjectOwner.AspectRatio.Width));
 end;
 
 procedure TObjectOptionsForm.edtHeightChange(Sender: TObject);
@@ -178,8 +186,8 @@ begin
     with lvActions.Items.Add do
     begin
       Caption := ActionNames[Header^.Info.ActType];
-      SubItems.Add(IntToStr(Header^.Info.TimeStart));
-      SubItems.Add(IntToStr(Header^.Info.TimeEnd));
+      SubItems.Add(IntToStr(Header^.Info.TimeStart div 1000));
+      SubItems.Add(IntToStr(Header^.Info.TimeEnd div 1000));
     end;
     Header := Header^.Next;
   end;
@@ -193,8 +201,8 @@ end;
 procedure TObjectOptionsForm.UpdateSelectedAction(Act: TActionInfo);
 begin
   lvActions.Items.Item[lvActions.ItemIndex].Caption := ActionNames[Act.ActType];
-  lvActions.Items.Item[lvActions.ItemIndex].SubItems[0] := IntToStr(Act.TimeStart);
-  lvActions.Items.Item[lvActions.ItemIndex].SubItems[1] := IntToStr(Act.TimeEnd);
+  lvActions.Items.Item[lvActions.ItemIndex].SubItems[0] := IntToStr(Act.TimeStart div 1000);
+  lvActions.Items.Item[lvActions.ItemIndex].SubItems[1] := IntToStr(Act.TimeEnd div 1000);
 end;
 
 end.

@@ -129,6 +129,7 @@ object ObjectOptionsForm: TObjectOptionsForm
     Font.Style = []
     ParentFont = False
     TabOrder = 0
+    OnClick = chbIsProportionalClick
   end
   object edtAngle: TEdit
     Left = 265

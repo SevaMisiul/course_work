@@ -4,7 +4,7 @@ object ActionEditForm: TActionEditForm
   BorderStyle = bsDialog
   Caption = 'ActionEditForm'
   ClientHeight = 290
-  ClientWidth = 704
+  ClientWidth = 710
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
@@ -135,32 +135,6 @@ object ActionEditForm: TActionEditForm
     Font.Style = []
     ParentFont = False
   end
-  object lbStartAngle: TLabel
-    Left = 448
-    Top = 15
-    Width = 82
-    Height = 19
-    Caption = 'Start angle:'
-    Font.Charset = DEFAULT_CHARSET
-    Font.Color = clWindowText
-    Font.Height = -16
-    Font.Name = 'Tahoma'
-    Font.Style = []
-    ParentFont = False
-  end
-  object lbEndAngle: TLabel
-    Left = 580
-    Top = 15
-    Width = 76
-    Height = 19
-    Caption = 'End angle:'
-    Font.Charset = DEFAULT_CHARSET
-    Font.Color = clWindowText
-    Font.Height = -16
-    Font.Name = 'Tahoma'
-    Font.Style = []
-    ParentFont = False
-  end
   object cbActionType: TComboBox
     Left = 15
     Top = 35
@@ -206,10 +180,15 @@ object ActionEditForm: TActionEditForm
     TabOrder = 8
   end
   object btnCancel: TButton
-    Left = 15
-    Top = 248
-    Width = 75
+    Left = 607
+    Top = 250
+    Width = 80
     Height = 30
+    Margins.Left = 10
+    Margins.Top = 10
+    Margins.Right = 10
+    Margins.Bottom = 10
+    Align = alCustom
     Caption = 'Cancel'
     Font.Charset = DEFAULT_CHARSET
     Font.Color = clWindowText
@@ -221,10 +200,14 @@ object ActionEditForm: TActionEditForm
     TabOrder = 9
   end
   object btnOk: TButton
-    Left = 613
-    Top = 248
-    Width = 75
+    Left = 511
+    Top = 250
+    Width = 80
     Height = 30
+    Margins.Left = 10
+    Margins.Top = 10
+    Margins.Right = 10
+    Margins.Bottom = 10
     Caption = 'OK'
     Default = True
     Font.Charset = DEFAULT_CHARSET
@@ -524,46 +507,42 @@ object ActionEditForm: TActionEditForm
     TabOrder = 13
     OnClick = bbtnThirdPointClick
   end
-  object edtStartAngle: TEdit
-    Left = 448
-    Top = 35
-    Width = 105
-    Height = 27
-    Font.Charset = DEFAULT_CHARSET
-    Font.Color = clWindowText
-    Font.Height = -16
-    Font.Name = 'Tahoma'
-    Font.Style = []
-    MaxLength = 10
-    NumbersOnly = True
-    ParentFont = False
-    TabOrder = 14
-  end
-  object edtEndAngle: TEdit
-    Left = 580
-    Top = 35
-    Width = 105
-    Height = 27
-    Font.Charset = DEFAULT_CHARSET
-    Font.Color = clWindowText
-    Font.Height = -16
-    Font.Name = 'Tahoma'
-    Font.Style = []
-    MaxLength = 10
-    NumbersOnly = True
-    ParentFont = False
-    TabOrder = 15
-  end
-  object pnlStartSize: TPanel
-    Left = 438
-    Top = 68
+  object pnlMoreOptions: TPanel
+    Left = 450
+    Top = 15
     Width = 260
-    Height = 77
+    Height = 212
     BevelOuter = bvNone
-    TabOrder = 16
+    TabOrder = 14
+    object lbEndAngle: TLabel
+      Left = 135
+      Top = -1
+      Width = 76
+      Height = 19
+      Caption = 'End angle:'
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clWindowText
+      Font.Height = -16
+      Font.Name = 'Tahoma'
+      Font.Style = []
+      ParentFont = False
+    end
+    object lbStartAngle: TLabel
+      Left = 0
+      Top = 0
+      Width = 82
+      Height = 19
+      Caption = 'Start angle:'
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clWindowText
+      Font.Height = -16
+      Font.Name = 'Tahoma'
+      Font.Style = []
+      ParentFont = False
+    end
     object lbStartHeight: TLabel
-      Left = 10
-      Top = 25
+      Left = 0
+      Top = 75
       Width = 88
       Height = 19
       Caption = 'Start height:'
@@ -575,8 +554,8 @@ object ActionEditForm: TActionEditForm
       ParentFont = False
     end
     object lbStartWidth: TLabel
-      Left = 145
-      Top = 25
+      Left = 137
+      Top = 75
       Width = 83
       Height = 19
       Caption = 'Start width:'
@@ -587,60 +566,9 @@ object ActionEditForm: TActionEditForm
       Font.Style = []
       ParentFont = False
     end
-    object chbIsProportionalStart: TCheckBox
-      Left = 10
-      Top = 0
-      Width = 112
-      Height = 20
-      Caption = 'Proportional'
-      Font.Charset = DEFAULT_CHARSET
-      Font.Color = clWindowText
-      Font.Height = -16
-      Font.Name = 'Tahoma'
-      Font.Style = []
-      ParentFont = False
-      TabOrder = 0
-    end
-    object edtStartHeight: TEdit
-      Left = 10
-      Top = 45
-      Width = 105
-      Height = 27
-      Font.Charset = DEFAULT_CHARSET
-      Font.Color = clWindowText
-      Font.Height = -16
-      Font.Name = 'Tahoma'
-      Font.Style = []
-      NumbersOnly = True
-      ParentFont = False
-      TabOrder = 1
-      OnChange = edtStartHeightChange
-    end
-    object edtStartWidth: TEdit
-      Left = 145
-      Top = 45
-      Width = 105
-      Height = 27
-      Font.Charset = DEFAULT_CHARSET
-      Font.Color = clWindowText
-      Font.Height = -16
-      Font.Name = 'Tahoma'
-      Font.Style = []
-      ParentFont = False
-      TabOrder = 2
-      OnChange = edtStartWidthChange
-    end
-  end
-  object pnlEndSize: TPanel
-    Left = 438
-    Top = 151
-    Width = 260
-    Height = 77
-    BevelOuter = bvNone
-    TabOrder = 17
     object lbEndHeight: TLabel
-      Left = 10
-      Top = 25
+      Left = 2
+      Top = 155
       Width = 82
       Height = 19
       Caption = 'End height:'
@@ -652,8 +580,8 @@ object ActionEditForm: TActionEditForm
       ParentFont = False
     end
     object lbEndWidth: TLabel
-      Left = 145
-      Top = 25
+      Left = 137
+      Top = 155
       Width = 77
       Height = 19
       Caption = 'End width:'
@@ -664,9 +592,39 @@ object ActionEditForm: TActionEditForm
       Font.Style = []
       ParentFont = False
     end
-    object chbIsProportionalEnd: TCheckBox
-      Left = 10
-      Top = 0
+    object edtEndAngle: TEdit
+      Left = 135
+      Top = 19
+      Width = 105
+      Height = 27
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clWindowText
+      Font.Height = -16
+      Font.Name = 'Tahoma'
+      Font.Style = []
+      MaxLength = 10
+      NumbersOnly = True
+      ParentFont = False
+      TabOrder = 0
+    end
+    object edtStartAngle: TEdit
+      Left = 0
+      Top = 20
+      Width = 105
+      Height = 27
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clWindowText
+      Font.Height = -16
+      Font.Name = 'Tahoma'
+      Font.Style = []
+      MaxLength = 10
+      NumbersOnly = True
+      ParentFont = False
+      TabOrder = 1
+    end
+    object chbIsProportionalStart: TCheckBox
+      Left = 0
+      Top = 55
       Width = 112
       Height = 20
       Caption = 'Proportional'
@@ -676,11 +634,11 @@ object ActionEditForm: TActionEditForm
       Font.Name = 'Tahoma'
       Font.Style = []
       ParentFont = False
-      TabOrder = 0
+      TabOrder = 2
     end
-    object edtEndHeight: TEdit
-      Left = 10
-      Top = 45
+    object edtStartHeight: TEdit
+      Left = 0
+      Top = 95
       Width = 105
       Height = 27
       Font.Charset = DEFAULT_CHARSET
@@ -690,12 +648,12 @@ object ActionEditForm: TActionEditForm
       Font.Style = []
       NumbersOnly = True
       ParentFont = False
-      TabOrder = 1
-      OnChange = edtEndHeightChange
+      TabOrder = 3
+      OnChange = edtStartHeightChange
     end
-    object edtEndWidth: TEdit
-      Left = 145
-      Top = 45
+    object edtStartWidth: TEdit
+      Left = 137
+      Top = 95
       Width = 105
       Height = 27
       Font.Charset = DEFAULT_CHARSET
@@ -704,8 +662,70 @@ object ActionEditForm: TActionEditForm
       Font.Name = 'Tahoma'
       Font.Style = []
       ParentFont = False
-      TabOrder = 2
+      TabOrder = 4
+      OnChange = edtStartWidthChange
+    end
+    object chbIsProportionalEnd: TCheckBox
+      Left = 2
+      Top = 135
+      Width = 112
+      Height = 20
+      Caption = 'Proportional'
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clWindowText
+      Font.Height = -16
+      Font.Name = 'Tahoma'
+      Font.Style = []
+      ParentFont = False
+      TabOrder = 5
+    end
+    object edtEndHeight: TEdit
+      Left = 2
+      Top = 175
+      Width = 105
+      Height = 27
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clWindowText
+      Font.Height = -16
+      Font.Name = 'Tahoma'
+      Font.Style = []
+      NumbersOnly = True
+      ParentFont = False
+      TabOrder = 6
+      OnChange = edtEndHeightChange
+    end
+    object edtEndWidth: TEdit
+      Left = 137
+      Top = 175
+      Width = 105
+      Height = 27
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clWindowText
+      Font.Height = -16
+      Font.Name = 'Tahoma'
+      Font.Style = []
+      ParentFont = False
+      TabOrder = 7
       OnChange = edtEndWidthChange
     end
+  end
+  object btnMode: TButton
+    Left = 15
+    Top = 250
+    Width = 80
+    Height = 30
+    Margins.Left = 10
+    Margins.Top = 10
+    Margins.Right = 10
+    Margins.Bottom = 10
+    Align = alCustom
+    Font.Charset = DEFAULT_CHARSET
+    Font.Color = clWindowText
+    Font.Height = -16
+    Font.Name = 'Tahoma'
+    Font.Style = []
+    ParentFont = False
+    TabOrder = 15
+    OnClick = btnModeClick
   end
 end

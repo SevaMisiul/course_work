@@ -1074,7 +1074,6 @@ object MainForm: TMainForm
     Visible = False
     OnMouseWheelDown = scrlbObjectsMouseWheelDown
     OnMouseWheelUp = scrlbObjectsMouseWheelUp
-    ExplicitHeight = 815
     object imgPanelClose: TImage
       Left = 232
       Top = 0

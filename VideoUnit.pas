@@ -447,6 +447,7 @@ var
   IsEnd: Boolean;
   CurrTime: Single;
 begin
+  ProgressForm.Show;
 
   Set8087CW($133F); { Disable all fpu exceptions }
   opt := nil;
@@ -487,11 +488,10 @@ begin
 
   CurrTime := 0;
 
-  ProgressForm.gProgress.Progress := 0;
-  ProgressForm.Show;
   while (EncodeVideo <> 0) do
   begin
-    ProgressForm.gProgress.Progress := Round(CurrTime / 1000 / duration * 100);
+    if duration <> 0 then
+      ProgressForm.gProgress.Progress := Round(CurrTime / 1000 / duration * 100);
     buff.Canvas.StretchDraw(Rect(0, 0, BkImage.width, BkImage.height), BkImage);
     IsEnd := True;
     TMainForm.DrawFrame(ObjectList, buff, IsEnd, CurrTime);
@@ -503,6 +503,7 @@ begin
     end;
     EncodeVideo := 1 - EncodeVideo;
     CurrTime := CurrTime + 1000 / FrameRate;
+    Sleep(0);
   end;
   av_write_trailer(outContext);
 

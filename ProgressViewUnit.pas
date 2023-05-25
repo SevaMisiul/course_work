@@ -9,6 +9,8 @@ uses
 type
   TProgressForm = class(TForm)
     gProgress: TGauge;
+    procedure FormShow(Sender: TObject);
+    procedure FormClose(Sender: TObject; var Action: TCloseAction);
   private
     { Private declarations }
   public
@@ -21,5 +23,15 @@ var
 implementation
 
 {$R *.dfm}
+
+procedure TProgressForm.FormClose(Sender: TObject; var Action: TCloseAction);
+begin
+  ProgressForm.gProgress.Progress := 100;
+end;
+
+procedure TProgressForm.FormShow(Sender: TObject);
+begin
+  ProgressForm.gProgress.Progress := 0;
+end;
 
 end.

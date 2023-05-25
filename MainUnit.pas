@@ -52,6 +52,8 @@ type
     actSaveVideo: TAction;
     Savevideo2: TMenuItem;
     imglIcons: TImageList;
+    actStopAnimation: TAction;
+    Stopanimation1: TMenuItem;
     procedure btnCreateAnimationClick(Sender: TObject);
     procedure FormPaint(Sender: TObject);
     procedure AddImgClick(Sender: TObject);
@@ -67,7 +69,11 @@ type
     procedure Animation(Sender: TObject);
     procedure actSaveVideoAsExecute(Sender: TObject);
     procedure actSaveVideoExecute(Sender: TObject);
+    procedure SaveVideoDialogCanClose(Sender: TObject; var CanClose: Boolean);
+    procedure actStopAnimationExecute(Sender: TObject);
   private
+    FAnimationBuff: TBitMap;
+    FBackPict: TPicture;
     FIsFirstSave: Boolean;
     FLastUpdate, FRunTime: Cardinal;
     FObjectList: PObjectLI;
@@ -124,14 +130,20 @@ begin
         begin
           if (StartWidth = EndWidth) and (StartHeight = EndHeight) then
             TObjectImage.Resize(AnimatedPicture, StartWidth, StartHeight, IsPng);
-          if (StartAngle = StartWidth) and (StartWidth = EndWidth) and (StartHeight = EndHeight) then
+          if (StartAngle = EndAngle) and (StartWidth = EndWidth) and (StartHeight = EndHeight) then
             TObjectImage.Rotate(AnimatedPicture, StartAngle, IsPng);
         end;
+      end
+      else
+      begin
+        TObjectImage.Resize(AnimatedPicture, ExplicitW, ExplicitH, IsPng);
+        TObjectImage.Rotate(AnimatedPicture, Angle, IsPng);
       end;
       Visible := False;
     end;
     Tmp := Tmp^.Next;
   end;
+  FAnimationBuff.SetSize(ClientWidth, ClientHeight);
   OnPaint := Animation;
   FRunTime := GetTickCount;
   FLastUpdate := 0;
@@ -143,20 +155,13 @@ var
   bmp: TBitMap;
   Tmp: PObjectLI;
   Duration: Integer;
-  btnSelected: Integer;
 begin
   PrepareSaveVideo(bmp, Duration);
-  btnSelected := mrYes;
 
   if SaveVideoDialog.Execute then
   begin
-    if FileExists(SaveVideoDialog.FileName) then
-      btnSelected := MessageDlg('File already exists. Overwrite it?', mtConfirmation, [mbYes, mbNo], 0);
-    if btnSelected = mrYes then
-    begin
-      CreateVideo(SaveVideoDialog.FileName, bmp.Width, bmp.Height, 60, Duration div 1000, bmp, ObjectList);
-      FIsFirstSave := False;
-    end;
+    CreateVideo(SaveVideoDialog.FileName, bmp.Width, bmp.Height, 60, Duration div 1000, bmp, ObjectList);
+    FIsFirstSave := False;
   end;
   bmp.Destroy;
 end;
@@ -166,21 +171,20 @@ var
   bmp: TBitMap;
   Tmp: PObjectLI;
   Duration: Integer;
-  btnSelected: Integer;
 begin
   PrepareSaveVideo(bmp, Duration);
-  btnSelected := mrYes;
 
   if FIsFirstSave then
     actSaveVideoAsExecute(Sender)
   else
-  begin
-    if FileExists(SaveVideoDialog.FileName) then
-      btnSelected := MessageDlg('File already exists. Overwrite it?', mtConfirmation, [mbYes, mbNo], 0);
-    if btnSelected = mrYes then
-      CreateVideo(SaveVideoDialog.FileName, bmp.Width, bmp.Height, 60, Duration div 1000, bmp, ObjectList);
-  end;
+    CreateVideo(SaveVideoDialog.FileName, bmp.Width, bmp.Height, 60, Duration div 1000, bmp, ObjectList);
   bmp.Destroy;
+end;
+
+procedure TMainForm.actStopAnimationExecute(Sender: TObject);
+begin
+  CompleteAnimation;
+  Invalidate;
 end;
 
 procedure TMainForm.AddImgClick(Sender: TObject);
@@ -222,31 +226,33 @@ var
   Tmp: PObjectLI;
   CurrTime: Cardinal;
   IsEnd: Boolean;
-  TmpBuff: TBitMap;
 begin
   CurrTime := GetTickCount - FRunTime;
-  TmpBuff := TBitMap.Create;
-  TmpBuff.SetSize(ClientWidth, ClientHeight);
-  TmpBuff.Canvas.StretchDraw(Rect(0, 0, ClientWidth, ClientHeight), BackMenuForm.BkPict.Graphic);
+  FAnimationBuff.Canvas.StretchDraw(Rect(0, 0, ClientWidth, ClientHeight), FBackPict.Graphic);
   Tmp := ObjectList;
   IsEnd := True;
-  TMainForm.DrawFrame(Tmp, TmpBuff, IsEnd, CurrTime);
-  Canvas.Draw(0, 0, TmpBuff);
+  TMainForm.DrawFrame(Tmp, FAnimationBuff, IsEnd, CurrTime);
+  Canvas.Draw(0, 0, FAnimationBuff);
   if IsEnd then
     CompleteAnimation;
   FLastUpdate := CurrTime;
-  TmpBuff.Destroy;
   Sleep(0);
   Invalidate;
 end;
 
 procedure TMainForm.btnCreateAnimationClick(Sender: TObject);
+var
+  Res: Integer;
 begin
-  BackMenuForm.ShowModal;
-  if BackMenuForm.BkPict <> nil then
+  Res := BackMenuForm.ShowForSelection(FBackPict);
+
+  if Res = mrOk then
   begin
     btnCreateAnimation.Visible := False;
-    Canvas.StretchDraw(Rect(0, 0, ClientWidth, ClientHeight), BackMenuForm.BkPict.Graphic);
+    Canvas.FillRect(Rect(0, 0, ClientWidth, ClientHeight));
+
+    TObjectImage.Resize(FBackPict, ClientWidth, ClientHeight, False, True);
+    Canvas.StretchDraw(Rect(0, 0, ClientWidth, ClientHeight), FBackPict.Graphic);
 
     SetMenu(True);
 
@@ -273,6 +279,10 @@ destructor TMainForm.Destroy;
 var
   Tmp1, Tmp2: PObjectLI;
 begin
+  FBackPict.Free;
+  FObjectFileNames := nil;
+  FAnimationBuff.Destroy;
+
   Tmp1 := ObjectList;
   while Tmp1 <> nil do
   begin
@@ -304,7 +314,11 @@ begin
           TObjectImage.Rotate(AnimatedPicture, StartAngle, IsPng);
       end
       else if (CurrAction <> nil) and (CurrAction^.Next = nil) and (CurrTime >= TimeEnd) then
+      begin
         CurrAction := CurrAction^.Next;
+        TObjectImage.Resize(AnimatedPicture, EndWidth, EndHeight, IsPng);
+        TObjectImage.Rotate(AnimatedPicture, EndAngle, IsPng);
+      end;
       TmpPict.Assign(AnimatedPicture);
       IsEnd := IsEnd and (CurrAction = nil);
       if (CurrAction <> nil) and (CurrTime >= TimeStart) then
@@ -315,7 +329,7 @@ begin
           CurrX := StartPoint.X + (EndPoint.X - StartPoint.X) * TimeRatio;
           CurrY := StartPoint.Y + (EndPoint.Y - StartPoint.Y) * TimeRatio;
         end
-        else if CurrAction^.Info.ActType = actCircleMove then
+        else if ActType = actCircleMove then
         begin
           R1X := CircleCenterX - StartPoint.X;
           R1Y := CircleCenterY - StartPoint.Y;
@@ -323,8 +337,16 @@ begin
           R2Y := CircleCenterY - EndPoint.Y;
           Alpha := ArcCos((R1X * R2X + R1Y * R2Y) / (sqr(Radius)));
           CurrAlpha := Alpha * TimeRatio;
-          NX := CircleCenterX - (R1X * Cos(CurrAlpha) + R1Y * Sin(CurrAlpha));
-          NY := CircleCenterY - (-R1X * Sin(CurrAlpha) + R1Y * Cos(CurrAlpha));
+          if R1X * R2Y - R1Y * R2X < 0 then
+          begin
+            NX := CircleCenterX - (R1X * Cos(CurrAlpha) + R1Y * Sin(CurrAlpha));
+            NY := CircleCenterY - (-R1X * Sin(CurrAlpha) + R1Y * Cos(CurrAlpha));
+          end
+          else
+          begin
+            NX := CircleCenterX - (R1X * Cos(CurrAlpha) - R1Y * Sin(CurrAlpha));
+            NY := CircleCenterY - (R1X * Sin(CurrAlpha) + R1Y * Cos(CurrAlpha));
+          end;
           CurrX := NX;
           CurrY := NY;
         end;
@@ -369,6 +391,8 @@ begin
   btnCreateAnimation.Left := P.X;
 
   SetMenu(False);
+  FBackPict := nil;
+  FAnimationBuff := TBitMap.Create;
 
   FIsFirstSave := True;
   DoubleBuffered := True;
@@ -423,8 +447,8 @@ end;
 
 procedure TMainForm.FormPaint(Sender: TObject);
 begin
-  if BackMenuForm.BkPict <> nil then
-    Canvas.StretchDraw(Rect(0, 0, ClientWidth, ClientHeight), BackMenuForm.BkPict.Graphic);
+  if FBackPict <> nil then
+    Canvas.StretchDraw(Rect(0, 0, ClientWidth, ClientHeight), FBackPict.Graphic);
 end;
 
 procedure TMainForm.imgPanelCloseClick(Sender: TObject);
@@ -443,21 +467,46 @@ var
 begin
   bmp := TBitMap.Create;
   bmp.SetSize(ClientWidth, ClientHeight);
-  bmp.Canvas.StretchDraw(Rect(0, 0, ClientWidth, ClientHeight), BackMenuForm.BkPict.Graphic);
+  bmp.Canvas.StretchDraw(Rect(0, 0, ClientWidth, ClientHeight), FBackPict.Graphic);
   Tmp := ObjectList;
   Duration := 0;
   while Tmp <> nil do
   begin
     with Tmp^.ObjectImage do
     begin
-      Duration := max(Duration, EndActionList^.Info.TimeEnd);
       CurrX := Left + Width div 2;
       CurrY := Top + Height div 2;
+      AnimatedPicture.Assign(OriginPicture);
       if ActionList[0] <> nil then
+      begin
         CurrAction := ActionList[0];
+        with CurrAction^.Info do
+        begin
+          if (StartWidth = EndWidth) and (StartHeight = EndHeight) then
+            TObjectImage.Resize(AnimatedPicture, StartWidth, StartHeight, IsPng);
+          if (StartAngle = EndAngle) and (StartWidth = EndWidth) and (StartHeight = EndHeight) then
+            TObjectImage.Rotate(AnimatedPicture, StartAngle, IsPng);
+        end;
+      end
+      else
+      begin
+        TObjectImage.Resize(AnimatedPicture, ExplicitW, ExplicitH, IsPng);
+        TObjectImage.Rotate(AnimatedPicture, Angle, IsPng);
+      end;
+      Duration := max(Duration, EndActionList^.Info.TimeEnd);
     end;
     Tmp := Tmp^.Next;
   end;
+end;
+
+procedure TMainForm.SaveVideoDialogCanClose(Sender: TObject; var CanClose: Boolean);
+var
+  btnSelected: Integer;
+begin
+  btnSelected := mrYes;
+  if FileExists(SaveVideoDialog.FileName) then
+    btnSelected := MessageDlg('File already exists. Overwrite it?', mtConfirmation, [mbYes, mbNo], 0);
+  CanClose := btnSelected = mrYes;
 end;
 
 procedure TMainForm.scrlbObjectsMouseWheelDown(Sender: TObject; Shift: TShiftState; MousePos: TPoint;

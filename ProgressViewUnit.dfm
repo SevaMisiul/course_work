@@ -3,8 +3,8 @@ object ProgressForm: TProgressForm
   Top = 0
   BorderStyle = bsNone
   Caption = 'Creating video'
-  ClientHeight = 75
-  ClientWidth = 246
+  ClientHeight = 35
+  ClientWidth = 200
   Color = clBtnFace
   Enabled = False
   Font.Charset = DEFAULT_CHARSET
@@ -15,13 +15,16 @@ object ProgressForm: TProgressForm
   FormStyle = fsStayOnTop
   OldCreateOrder = False
   Position = poScreenCenter
+  OnClose = FormClose
+  OnShow = FormShow
   PixelsPerInch = 96
   TextHeight = 13
   object gProgress: TGauge
-    Left = 20
-    Top = 20
+    Left = 0
+    Top = 0
     Width = 200
     Height = 35
-    Progress = 0
+    Enabled = False
+    Progress = 100
   end
 end

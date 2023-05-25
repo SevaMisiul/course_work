@@ -68,7 +68,8 @@ type
     constructor Create(AOwner: TComponent; X: Integer; Y: Integer; Pict: TPicture; IsPngExtension: Boolean);
     destructor Destroy;
     class procedure Rotate(var DestPicture: TPicture; Angle: Integer; IsPngExtn: Boolean);
-    class procedure Resize(var DestPicture: TPicture; NewWidth, NewHeight: Integer; IsPngExtn: Boolean);
+    class procedure Resize(var DestPicture: TPicture; NewWidth, NewHeight: Integer; IsPngExtn: Boolean;
+      ShowProgress: Boolean = False);
     procedure ViewImage(Pict: TGraphic);
     procedure AddAction(Act: TACtionInfo);
     procedure SetAction(P: PActionLI; Act: TACtionInfo);
@@ -97,7 +98,7 @@ const
 implementation
 
 uses
-  ObjectOptionsUnit, MainUnit, BackMenuUnit;
+  ObjectOptionsUnit, MainUnit, BackMenuUnit, ProgressViewUnit;
 
 function GCD(A, B: Integer): Integer;
 begin
@@ -126,10 +127,23 @@ begin
   Y2 := Act.ThirdPoint.Y;
   X3 := Act.EndPoint.X;
   Y3 := Act.EndPoint.Y;
-  Y0 := ((sqr(X1) - sqr(X3) + sqr(Y1) - sqr(Y3)) / (2 * (Y1 - Y3)) + (sqr(X1) - sqr(X2) + sqr(Y1) - sqr(Y2)) /
-    (2 * (X1 - X2)) * (X3 - X1) / (Y1 - Y3)) / (1 - (Y2 - Y1) * (X3 - X1) / ((X1 - X2) * (Y1 - Y3)));
-  X0 := (sqr(X1) - sqr(X2) + sqr(Y1) - sqr(Y2)) / (2 * (X1 - X2)) + Y0 * (Y2 - Y1) / (X1 - X2);
 
+  if Y1 = Y3 then
+  begin
+    X0 := (X1 + X3) / 2;
+    Y0 := (sqr(X2 - X0) - sqr(X3 - X0) + Y2 * Y2 - Y3 * Y3) / (2 * (Y2 - Y3));
+  end
+  else if X1 = X2 then
+  begin
+    Y0 := (Y1 + Y2) / 2;
+    X0 := (sqr(Y2 - Y0) - sqr(Y3 - Y0) + X2 * X2 - X3 * X3) / (2 * (X2 - X3));
+  end
+  else
+  begin
+    Y0 := ((sqr(X1) - sqr(X3) + sqr(Y1) - sqr(Y3)) / (2 * (Y1 - Y3)) + (sqr(X1) - sqr(X2) + sqr(Y1) - sqr(Y2)) /
+      (2 * (X1 - X2)) * (X3 - X1) / (Y1 - Y3)) / (1 - (Y2 - Y1) * (X3 - X1) / ((X1 - X2) * (Y1 - Y3)));
+    X0 := (sqr(X1) - sqr(X2) + sqr(Y1) - sqr(Y2)) / (2 * (X1 - X2)) + Y0 * (Y2 - Y1) / (X1 - X2);
+  end;
   Act.Radius := sqrt(sqr(X1 - X0) + sqr(Y1 - Y0));
   Act.CircleCenterX := X0;
   Act.CircleCenterY := Y0;
@@ -315,7 +329,8 @@ begin
     TControl(Sender).BeginDrag(False);
 end;
 
-class procedure TObjectImage.Resize(var DestPicture: TPicture; NewWidth, NewHeight: Integer; IsPngExtn: Boolean);
+class procedure TObjectImage.Resize(var DestPicture: TPicture; NewWidth, NewHeight: Integer; IsPngExtn: Boolean;
+  ShowProgress: Boolean = False);
 var
   ScaleX, ScaleY: Single;
   sfrom_y, sfrom_x: Single;
@@ -335,6 +350,9 @@ var
   sli, slo: PRGBLine;
   ali, alo: PByteArray;
 begin
+  if ShowProgress then
+    ProgressForm.Show;
+
   IsAlpha := False;
 
   if IsPngExtn then
@@ -372,6 +390,9 @@ begin
     weight_y[0] := 1 - weight_y[1];
     for to_x := 0 to NewWidth - 1 do
     begin
+      if ShowProgress then
+        ProgressForm.gProgress.Progress := Round((to_y * NewWidth + to_x) / (NewWidth * NewHeight) * 100);
+
       sfrom_x := to_x / ScaleX;
       ifrom_x := Trunc(sfrom_x);
       weight_x[1] := sfrom_x - ifrom_x;
@@ -429,6 +450,9 @@ begin
     SourceBmp.Free;
     DestBmp.Free;
   end;
+
+  if ShowProgress then
+    ProgressForm.Close;
 end;
 
 class procedure TObjectImage.Rotate(var DestPicture: TPicture; Angle: Integer; IsPngExtn: Boolean);

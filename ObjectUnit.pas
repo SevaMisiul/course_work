@@ -294,7 +294,6 @@ var
   H, W, L, T, AngleP: Integer;
   IsProportional, IsChanged: Boolean;
   TmpPict: TPicture;
-  DestBmp: TBitMap;
 begin
   H := FExplicitH;
   W := FExplicitW;

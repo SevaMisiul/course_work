@@ -298,7 +298,7 @@ end;
 
 class procedure TMainForm.DrawFrame(Tmp: PObjectLI; Buff: TBitMap; var IsEnd: Boolean; CurrTime: Single);
 var
-  PixelTime, R1X, R1Y, R2X, R2Y, Alpha, CurrAlpha, NX, NY, TimeRatio: Extended;
+  PixelTime, Alpha, CurrAlpha, NX, NY, TimeRatio: Extended;
   dltH, dltW: Integer;
   TmpPict: TPicture;
 begin
@@ -333,10 +333,6 @@ begin
         end
         else if ActType = actCircleMove then
         begin
-          R1X := CircleCenterX - StartPoint.X;
-          R1Y := CircleCenterY - StartPoint.Y;
-          R2X := CircleCenterX - EndPoint.X;
-          R2Y := CircleCenterY - EndPoint.Y;
           Alpha := ArcCos((R1X * R2X + R1Y * R2Y) / (sqr(Radius)));
           CurrAlpha := Alpha * TimeRatio;
           if R1X * R2Y - R1Y * R2X < 0 then

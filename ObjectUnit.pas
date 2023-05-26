@@ -20,7 +20,7 @@ type
     TimeStart, TimeEnd, StartAngle, EndAngle, StartHeight, StartWidth, EndHeight, EndWidth: Integer;
     IsPropStart, IsPropEnd: Boolean;
     StartPoint, EndPoint, ThirdPoint: TPoint;
-    CircleCenterX, CircleCenterY, Radius: Extended;
+    CircleCenterX, CircleCenterY, Radius, R1X, R1Y, R2X, R2Y: Extended;
   end;
 
   PActionLI = ^TActionLI;
@@ -144,9 +144,16 @@ begin
       (2 * (X1 - X2)) * (X3 - X1) / (Y1 - Y3)) / (1 - (Y2 - Y1) * (X3 - X1) / ((X1 - X2) * (Y1 - Y3)));
     X0 := (sqr(X1) - sqr(X2) + sqr(Y1) - sqr(Y2)) / (2 * (X1 - X2)) + Y0 * (Y2 - Y1) / (X1 - X2);
   end;
-  Act.Radius := sqrt(sqr(X1 - X0) + sqr(Y1 - Y0));
-  Act.CircleCenterX := X0;
-  Act.CircleCenterY := Y0;
+  with Act do
+  begin
+    Radius := sqrt(sqr(X1 - X0) + sqr(Y1 - Y0));
+    CircleCenterX := X0;
+    CircleCenterY := Y0;
+    R1X := CircleCenterX - StartPoint.X;
+    R1Y := CircleCenterY - StartPoint.Y;
+    R2X := CircleCenterX - EndPoint.X;
+    R2Y := CircleCenterY - EndPoint.Y;
+  end;
 end;
 
 procedure TObjectImage.AddAction(Act: TACtionInfo);

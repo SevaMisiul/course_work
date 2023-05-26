@@ -294,6 +294,7 @@ var
   H, W, L, T, AngleP: Integer;
   IsProportional, IsChanged: Boolean;
   TmpPict: TPicture;
+  DestBmp: TBitMap;
 begin
   H := FExplicitH;
   W := FExplicitW;
@@ -377,7 +378,7 @@ begin
   if IsPngExtn then
   begin
     DestPict := TPNGObject.Create;
-    DestPict.CreateBlank(COLOR_RGBALPHA, 8, NewWidth, NewHeight);
+    DestPict.CreateBlank(SourcePict.Header.ColorType, 8, NewWidth, NewHeight);
   end
   else
   begin
@@ -428,20 +429,20 @@ begin
           new_red := sli[ifrom_x + ix].rgbtRed;
           new_green := sli[ifrom_x + ix].rgbtGreen;
           new_blue := sli[ifrom_x + ix].rgbtBlue;
-          if IsAlpha then
+          if IsPngExtn and IsAlpha then
             new_alpha := ali[ifrom_x + ix];
           weight := weight_x[ix] * weight_y[iy];
           total_red := total_red + new_red * weight;
           total_green := total_green + new_green * weight;
           total_blue := total_blue + new_blue * weight;
-          if IsAlpha then
+          if IsPngExtn and IsAlpha then
             total_alpha := total_alpha + new_alpha * weight;
         end;
       end;
       slo[to_x].rgbtRed := Round(total_red);
       slo[to_x].rgbtGreen := Round(total_green);
       slo[to_x].rgbtBlue := Round(total_blue);
-      if IsAlpha then
+      if IsPngExtn and IsAlpha then
         alo[to_x] := Round(total_alpha);
     end;
   end;
@@ -541,7 +542,7 @@ begin
   if IsPngExtn then
   begin
     DestPict := TPNGObject.Create;
-    DestPict.CreateBlank(COLOR_RGBALPHA, 8, MaxP.X - MinP.X + 1, MaxP.Y - MinP.Y + 1);
+    DestPict.CreateBlank(SourcePict.Header.ColorType, 8, MaxP.X - MinP.X + 1, MaxP.Y - MinP.Y + 1);
   end
   else
   begin
@@ -559,7 +560,7 @@ begin
       DestRow := DestPict.ScanLine[Y + DestCenter.Y]
     else
       DestRow := DestBmp.ScanLine[Y + DestCenter.Y];
-    if IsPngExtn and IsAlpha then
+    if IsPngExtn then
       DestAlpha := DestPict.AlphaScanline[Y + DestCenter.Y];
     for X := MinP.X to MaxP.X - 1 do
     begin

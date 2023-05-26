@@ -559,7 +559,7 @@ begin
       DestRow := DestPict.ScanLine[Y + DestCenter.Y]
     else
       DestRow := DestBmp.ScanLine[Y + DestCenter.Y];
-    if IsPngExtn then
+    if IsPngExtn and IsAlpha then
       DestAlpha := DestPict.AlphaScanline[Y + DestCenter.Y];
     for X := MinP.X to MaxP.X - 1 do
     begin

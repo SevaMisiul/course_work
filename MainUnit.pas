@@ -83,13 +83,14 @@ type
     FObjectPanelTop: Integer;
     FLastClick: TPoint;
     FObjectFileNames: System.TArray<string>;
+    procedure Start;
     procedure SwitchPanel;
     procedure PrepareSaveVideo(var bmp: TBitMap; var Duration: Integer);
     procedure SetMenu(Mode: Boolean);
+    procedure CompleteAnimation;
   public
     destructor Destroy; override;
     procedure AddObject(Obj: TObjectImage);
-    procedure CompleteAnimation;
     class procedure DrawFrame(Tmp: PObjectLI; Buff: TBitMap; var IsEnd: Boolean; CurrTime: Single);
     { properties }
     property ObjectList: PObjectLI read FObjectList write FObjectList;
@@ -255,6 +256,7 @@ begin
     Canvas.StretchDraw(Rect(0, 0, ClientWidth, ClientHeight), FBackPict.Graphic);
 
     SetMenu(True);
+    Start;
 
     imgPanelOpen.Visible := True;
     imgPanelOpen.Top := ClientHeight div 2 - imgPanelOpen.Height;
@@ -380,7 +382,6 @@ end;
 
 procedure TMainForm.FormCreate(Sender: TObject);
 var
-  Path, Extn: string;
   Tmp: TImage;
   P: TPoint;
 begin
@@ -393,37 +394,7 @@ begin
   SetMenu(False);
   FBackPict := nil;
   FAnimationBuff := TBitMap.Create;
-
-  FIsFirstSave := True;
-  DoubleBuffered := True;
-  CreateDir('backgrounds');
-  CreateDir('Icons');
-  CreateDir('objects');
-
-  SaveVideoDialog.Filter := '';
-  for Extn in VideoExtensions do
-    SaveVideoDialog.Filter := SaveVideoDialog.Filter + 'Video ' + Copy(Extn, 3) + '|' + Extn + '|';
-  SaveVideoDialog.Filter := SaveVideoDialog.Filter + 'Any file|*.*';
-  SaveVideoDialog.FileName := 'Video';
-  SaveVideoDialog.DefaultExt := '.mp4';
-  SaveVideoDialog.FilterIndex := 1;
-
-  FObjectFileNames := TDirectory.GetFiles('objects');
-  ObjectPanelTop := 20;
-  FWaitingClickToCreate := False;
   FObjectList := nil;
-
-  for Path in FObjectFileNames do
-  begin
-    TObjectIcon.Create(scrlbObjects, ObjectPanelTop, Path);
-    ObjectPanelTop := ObjectPanelTop + TObjectIcon.SpaceTop + TObjectIcon.ObjectHeight;
-  end;
-
-  FAddObjectIcon := TObjectIcon.Create(scrlbObjects, ObjectPanelTop, 'icons\addicon.png');
-  FAddObjectIcon.OnClick := AddImgClick;
-  FAddObjectIcon.OnMouseDown := nil;
-
-  scrlbObjects.VertScrollBar.Range := ObjectPanelTop + TObjectIcon.SpaceTop + TObjectIcon.ObjectHeight;
 end;
 
 procedure TMainForm.FormDragDrop(Sender, Source: TObject; X, Y: Integer);
@@ -530,6 +501,42 @@ begin
   actRunAnimation.Enabled := Mode;
   actSaveVideoAs.Enabled := Mode;
   actSaveVideo.Enabled := Mode;
+end;
+
+procedure TMainForm.Start;
+var
+  Path, Extn: string;
+begin
+  FIsFirstSave := True;
+  DoubleBuffered := True;
+  CreateDir('backgrounds');
+  CreateDir('Icons');
+  CreateDir('objects');
+
+  SaveVideoDialog.Filter := '';
+  for Extn in VideoExtensions do
+    SaveVideoDialog.Filter := SaveVideoDialog.Filter + 'Video ' + Copy(Extn, 3) + '|' + Extn + '|';
+  SaveVideoDialog.Filter := SaveVideoDialog.Filter + 'Any file|*.*';
+  SaveVideoDialog.FileName := 'Video';
+  SaveVideoDialog.DefaultExt := '.mp4';
+  SaveVideoDialog.FilterIndex := 1;
+
+  FObjectFileNames := TDirectory.GetFiles('objects');
+  ObjectPanelTop := 20;
+  FWaitingClickToCreate := False;
+
+  for Path in FObjectFileNames do
+  begin
+    TObjectIcon.Create(scrlbObjects, ObjectPanelTop, Path);
+    ObjectPanelTop := ObjectPanelTop + TObjectIcon.SpaceTop + TObjectIcon.ObjectHeight;
+  end;
+
+  FAddObjectIcon := TObjectIcon.Create(scrlbObjects, ObjectPanelTop, 'icons\addicon.png');
+  FAddObjectIcon.OnClick := AddImgClick;
+  FAddObjectIcon.OnMouseDown := nil;
+
+  scrlbObjects.VertScrollBar.Range := ObjectPanelTop + TObjectIcon.SpaceTop + TObjectIcon.ObjectHeight;
+
 end;
 
 procedure TMainForm.SwitchPanel;

@@ -388,6 +388,12 @@ begin
     ifrom_y := Trunc(sfrom_y);
     weight_y[1] := sfrom_y - ifrom_y;
     weight_y[0] := 1 - weight_y[1];
+    if IsPngExtn then
+      slo := DestPict.ScanLine[to_y]
+    else
+      slo := DestBmp.ScanLine[to_y];
+    if IsPngExtn and IsAlpha then
+      alo := DestPict.AlphaScanline[to_y];
     for to_x := 0 to NewWidth - 1 do
     begin
       if ShowProgress then
@@ -425,12 +431,6 @@ begin
             total_alpha := total_alpha + new_alpha * weight;
         end;
       end;
-      if IsPngExtn then
-        slo := DestPict.ScanLine[to_y]
-      else
-        slo := DestBmp.ScanLine[to_y];
-      if IsPngExtn and IsAlpha then
-        alo := DestPict.AlphaScanline[to_y];
       slo[to_x].rgbtRed := Round(total_red);
       slo[to_x].rgbtGreen := Round(total_green);
       slo[to_x].rgbtBlue := Round(total_blue);

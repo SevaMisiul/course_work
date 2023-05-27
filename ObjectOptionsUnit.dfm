@@ -2,7 +2,7 @@ object ObjectOptionsForm: TObjectOptionsForm
   Left = 0
   Top = 0
   BorderStyle = bsDialog
-  Caption = 'ObjectOptionsForm'
+  Caption = 'Object editor'
   ClientHeight = 450
   ClientWidth = 549
   Color = clBtnFace

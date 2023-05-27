@@ -2,7 +2,7 @@ object ActionEditForm: TActionEditForm
   Left = 0
   Top = 0
   BorderStyle = bsDialog
-  Caption = 'ActionEditForm'
+  Caption = 'Action editor'
   ClientHeight = 290
   ClientWidth = 710
   Color = clBtnFace

@@ -3,7 +3,7 @@ object MainForm: TMainForm
   Top = 0
   BorderIcons = [biSystemMenu, biMinimize]
   BorderStyle = bsSingle
-  Caption = 'MainForm'
+  Caption = 'Video constructor'
   ClientHeight = 825
   ClientWidth = 1450
   Color = clBtnFace

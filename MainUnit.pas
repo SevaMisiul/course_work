@@ -23,6 +23,7 @@ type
     FIsPng: Boolean;
   public
     constructor Create(AOwner: TComponent; Y: Integer; ImgPath: string);
+    destructor Destroy; override;
     { properties }
     property IsPng: Boolean read FIsPng write FIsPng;
   end;
@@ -564,6 +565,11 @@ begin
   Top := Y;
   Left := SpaceLeft;
   IsPng := (Copy(ImgPath, Pos('.', ImgPath)) = '.png');
+end;
+
+destructor TObjectIcon.Destroy;
+begin
+  inherited Destroy;
 end;
 
 procedure TObjectIcon.ObjectIconMouseDown(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);

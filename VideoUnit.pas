@@ -352,7 +352,7 @@ begin
   GetDIB(bmp.Handle, bmp.Palette, MemBitMapInfo[0], MemBits[0]);
 
   j := 0;
-  for y := heigth - 1 downto 0 do
+  for y := heigth - 3 downto 0 do
     for x := 0 to width - 1 do
     begin
       PByte(@PAnsiChar(pict.data[0])[y * pict.linesize[0] + (x * 3)])^ := MemBits[j * 4 + 2];

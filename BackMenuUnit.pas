@@ -18,6 +18,7 @@ type
     BkWidth = 336;
   public
     constructor Create(AOwner: TComponent; X: Integer; Y: Integer; ImgPath: string; var IsCreated: Boolean);
+    destructor Destroy; override;
   end;
 
   TBackMenuForm = class(TForm)
@@ -188,6 +189,11 @@ begin
   Width := TBkImage.BkWidth;
   Top := Y;
   Left := X;
+end;
+
+destructor TBkImage.Destroy;
+begin
+  inherited Destroy;
 end;
 
 end.

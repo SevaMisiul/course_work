@@ -573,9 +573,6 @@ begin
         (srcPoint.Y < DestPicture.Height) then
       begin
 
-        if srcY > 40 then
-          MainForm.Caption := '';
-
         dltX := srcX - srcPoint.X;
         dltY := srcY - srcPoint.Y;
 

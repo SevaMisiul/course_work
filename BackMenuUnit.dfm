@@ -3,7 +3,6 @@ object BackMenuForm: TBackMenuForm
   Top = 200
   VertScrollBar.Increment = 50
   BorderStyle = bsDialog
-  Caption = 'BackMenuForm'
   ClientHeight = 457
   ClientWidth = 846
   Color = clWhite

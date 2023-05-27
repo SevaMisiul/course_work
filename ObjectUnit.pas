@@ -404,8 +404,10 @@ begin
     for to_x := 0 to NewWidth - 1 do
     begin
       if ShowProgress then
+      begin
         ProgressForm.gProgress.Progress := Round((to_y * NewWidth + to_x) / (NewWidth * NewHeight) * 100);
-
+        Application.ProcessMessages;
+      end;
       sfrom_x := to_x / ScaleX;
       ifrom_x := Trunc(sfrom_x);
       weight_x[1] := sfrom_x - ifrom_x;

@@ -89,6 +89,7 @@ type
     procedure PrepareSaveVideo(var bmp: TBitMap; var Duration: Integer);
     procedure SetMenu(Mode: Boolean);
     procedure CompleteAnimation;
+    procedure CompleteSaving;
   public
     destructor Destroy; override;
     procedure AddObject(Obj: TObjectImage);
@@ -165,6 +166,8 @@ begin
     CreateVideo(SaveVideoDialog.FileName, bmp.Width, bmp.Height, 60, Duration div 1000, bmp, ObjectList);
     FIsFirstSave := False;
   end;
+
+  CompleteSaving;
   bmp.Destroy;
 end;
 
@@ -180,6 +183,8 @@ begin
     actSaveVideoAsExecute(Sender)
   else
     CreateVideo(SaveVideoDialog.FileName, bmp.Width, bmp.Height, 60, Duration div 1000, bmp, ObjectList);
+
+  CompleteSaving;
   bmp.Destroy;
 end;
 
@@ -251,6 +256,7 @@ begin
   if Res = mrOk then
   begin
     btnCreateAnimation.Visible := False;
+    Application.ProcessMessages;
     Canvas.FillRect(Rect(0, 0, ClientWidth, ClientHeight));
 
     TObjectImage.Resize(FBackPict, ClientWidth, ClientHeight, False, True);
@@ -262,6 +268,23 @@ begin
     imgPanelOpen.Visible := True;
     imgPanelOpen.Top := ClientHeight div 2 - imgPanelOpen.Height;
   end;
+end;
+
+procedure TMainForm.CompleteSaving;
+var
+  Tmp: PObjectLI;
+begin
+  Tmp := ObjectList;
+  while Tmp <> nil do
+  begin
+    Tmp^.ObjectImage.Enabled := True;
+    Tmp := Tmp^.Next;
+  end;
+
+  imgPanelOpen.Enabled := True;
+  imgPanelClose.Enabled := True;
+
+  SetMenu(True);
 end;
 
 procedure TMainForm.CompleteAnimation;
@@ -388,6 +411,8 @@ begin
   btnCreateAnimation.Top := P.Y;
   btnCreateAnimation.Left := P.X;
 
+  OnPaint := nil;
+
   SetMenu(False);
   FBackPict := nil;
   FAnimationBuff := TBitMap.Create;
@@ -433,11 +458,15 @@ procedure TMainForm.PrepareSaveVideo(var bmp: TBitMap; var Duration: Integer);
 var
   Tmp: PObjectLI;
 begin
+  SetMenu(False);
+
   bmp := TBitMap.Create;
   bmp.SetSize(ClientWidth, ClientHeight);
   bmp.Canvas.StretchDraw(Rect(0, 0, ClientWidth, ClientHeight), FBackPict.Graphic);
   Tmp := ObjectList;
   Duration := 0;
+  imgPanelOpen.Enabled := False;
+  imgPanelClose.Enabled := False;
   while Tmp <> nil do
   begin
     with Tmp^.ObjectImage do
@@ -462,6 +491,7 @@ begin
         TObjectImage.Rotate(AnimatedPicture, Angle, IsPng);
       end;
       Duration := max(Duration, EndActionList^.Info.TimeEnd);
+      Enabled := False;
     end;
     Tmp := Tmp^.Next;
   end;
@@ -504,6 +534,8 @@ procedure TMainForm.Start;
 var
   Path, Extn: string;
 begin
+  OnPaint := FormPaint;
+
   FIsFirstSave := True;
   DoubleBuffered := True;
   CreateDir('backgrounds');

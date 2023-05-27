@@ -492,6 +492,7 @@ begin
   begin
     if duration <> 0 then
       ProgressForm.gProgress.Progress := Round(CurrTime / 1000 / duration * 100);
+    Application.ProcessMessages;
     buff.Canvas.StretchDraw(Rect(0, 0, BkImage.width, BkImage.height), BkImage);
     IsEnd := True;
     TMainForm.DrawFrame(ObjectList, buff, IsEnd, CurrTime);
@@ -503,7 +504,6 @@ begin
     end;
     EncodeVideo := 1 - EncodeVideo;
     CurrTime := CurrTime + 1000 / FrameRate;
-    Sleep(0);
   end;
   av_write_trailer(outContext);
 

@@ -313,7 +313,7 @@ begin
     if (H <> FExplicitH) or (W <> FExplicitW) or (AngleP <> Self.Angle) then
     begin
       IsChanged := True;
-      Resize(TmpPict, FExplicitW, FExplicitH, FIsPng);
+      Resize(TmpPict, FExplicitW, FExplicitH, FIsPng, True);
       ViewImage(TmpPict.Graphic);
     end;
     if IsChanged or (AngleP <> Self.Angle) then
@@ -366,6 +366,8 @@ begin
   begin
     SourcePict := TPNGObject.Create;
     SourcePict.Assign(DestPicture.Graphic);
+    SourcePict.Height;
+    SourcePict.Width;
     IsAlpha := (SourcePict.Header.ColorType = COLOR_RGBALPHA);
   end
   else

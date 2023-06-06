@@ -83,7 +83,7 @@ end;
 
 procedure TBackMenuForm.AddImgClick(Sender: TObject);
 var
-  FilePath, FileExtension, Rever: string;
+  FilePath, FileExtension, Rever, TmpStr: string;
   IsCreated: Boolean;
   Tmp: TBkImage;
 begin
@@ -92,7 +92,10 @@ begin
     begin
       Rever := ReverseString(BkPictureDialog.FileName);
       FileExtension := ReverseString(Copy(Rever, 1, Pos('.', Rever)));
-      FilePath := 'backgrounds\' + IntToStr(scrlbBackground.ControlCount) + FileExtension;
+      Rever := ReverseString(Application.ExeName);
+      tmpStr := Copy(Rever, Pos('\', Rever), Length(Rever));
+      tmpStr := ReverseString(tmpStr);
+      FilePath := tmpStr + 'backgrounds\' + IntToStr(scrlbBackground.ControlCount) + FileExtension;
 
       Tmp := TBkImage.Create(scrlbBackground, CurrLeft, CurrTop - scrlbBackground.VertScrollBar.Position,
         BkPictureDialog.FileName, IsCreated);
